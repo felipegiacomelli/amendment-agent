@@ -8,14 +8,17 @@ from anthropic import Anthropic
 
 from amendment_agent.agent import StopReason, run_agent
 from amendment_agent.edgar import FetchError, fetch_all
+from amendment_agent.evals import run_eval
 from amendment_agent.extract import extract_all
 from amendment_agent.manifest import load_manifest
 from amendment_agent.recorder import PRICES, RunRecorder
-from amendment_agent.schema import ANSWER_FILENAME, load_answer
+from amendment_agent.schema import ANSWER_FILENAME, load_answer, load_cases
 from amendment_agent.settings import (
+    CASES_PATH,
     MANIFEST_PATH,
     OUTPUT_DIR,
     RAW_DIR,
+    RESULTS_DIR,
     RUNS_DIR,
     TEXT_DIR,
     Settings,
@@ -123,6 +126,32 @@ def cmd_ask(settings: Settings, question: str, model_flag: str | None) -> int:
     return 0 if stop_reason is StopReason.ANSWERED else 1
 
 
+def cmd_eval(settings: Settings, model_flag: str | None, case_id: str | None) -> int:
+    prepared = prepare(settings, model_flag)
+    if isinstance(prepared, str):
+        return fail(prepared)
+    client, model = prepared
+    cases = load_cases(CASES_PATH)
+    if case_id is not None:
+        cases = [case for case in cases if case.id == case_id]
+        if not cases:
+            return fail(f"no case with id {case_id!r} in {CASES_PATH}")
+    run_eval(
+        cases,
+        client=client,
+        model=model,
+        max_turns=settings.agent_max_turns,
+        max_cost_usd=settings.agent_max_cost_usd,
+        config=run_config(settings),
+        cases_path=CASES_PATH,
+        runs_dir=RUNS_DIR,
+        outputs_dir=OUTPUT_DIR,
+        results_dir=RESULTS_DIR,
+        text_dir=TEXT_DIR,
+    )
+    return 0  # the eval reports; it never gates
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="amendment-agent",
@@ -139,6 +168,11 @@ def build_parser() -> argparse.ArgumentParser:
     ask = commands.add_parser("ask", help="answer one question with the agent")
     ask.add_argument("question")
     ask.add_argument("--model", help="override AGENT_MODEL")
+    evaluate = commands.add_parser(
+        "eval", help="run the eval cases and print a results table"
+    )
+    evaluate.add_argument("--model", help="override AGENT_MODEL")
+    evaluate.add_argument("--case", help="run only the case with this id")
     return parser
 
 
@@ -152,6 +186,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_extract()
         case "ask":
             return cmd_ask(settings, args.question, args.model)
+        case "eval":
+            return cmd_eval(settings, args.model, args.case)
     raise AssertionError(f"unhandled command {args.command!r}")
 
 
