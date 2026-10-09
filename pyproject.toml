@@ -61,5 +61,5 @@ branch = true
 [tool.coverage.report]
 exclude_also = ["raise NotImplementedError"]
 show_missing = true
-# Ratcheted to the measured value in Task 11; it only ever goes up.
-fail_under = 0
+# Ratchet: measured at scaffold time; only ever raise it.
+fail_under = 81
