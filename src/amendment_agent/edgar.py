@@ -35,8 +35,8 @@ def fetch_all(
 
     SEC fair access: a "Name email" User-Agent and at most 10 requests per second.
     Requests are sequential and at least `min_interval` seconds apart.
-    # ponytail: sequential sleep, not a token bucket; four documents.
     """
+    # ponytail: sequential sleep, not a token bucket; four documents.
     if not user_agent.strip():
         raise FetchError("SEC_USER_AGENT is empty; SEC requires 'Name email'")
     raw_dir.mkdir(parents=True, exist_ok=True)

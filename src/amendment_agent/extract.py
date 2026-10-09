@@ -4,9 +4,9 @@ Format: one block (paragraph, heading, table row) per line, so a line number is 
 stable citation anchor. Line 1 is `[Page 1]`; each page break adds `[Page N]`,
 counting pages as the filing renders them (not the printed footer numbers, which stay
 in the text as their own lines). Table rows are their non-empty cells joined by " | ".
-# ponytail: no structure-aware parsing or printed-page mapping; that is the user's
-# rung-4 work.
 """
+
+# ponytail: no structure-aware parsing or printed-page mapping.
 
 import re
 from html.parser import HTMLParser
