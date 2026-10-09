@@ -1,0 +1,31 @@
+# secrets
+.env
+
+# python and tooling
+.venv/
+__pycache__/
+*.egg-info/
+dist/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+
+# raw filings and derived text are never committed
+data/raw/
+data/text/
+
+# run artefacts; keep evidence with `git add -f`
+runs/*
+!runs/.gitkeep
+outputs/*
+!outputs/.gitkeep
+
+# private notes and internal planning docs
+references/
+docs/superpowers/
+
+# editor
+*.sublime-project
+*.sublime-workspace
