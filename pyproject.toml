@@ -48,7 +48,7 @@ target-version = ["py312"]
 
 [tool.mypy]
 strict = true
-files = ["src"]  # Task 3 adds "tests" once it exists
+files = ["src", "tests"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

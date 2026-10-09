@@ -1,0 +1,41 @@
+# Envista Holdings credit agreement family, from SEC EDGAR.
+# Precedence comes from `dated` (the legal date), not `filing_date`.
+company: Envista Holdings Corp
+cik: "0001757073"
+documents:
+  - id: original
+    type: credit_agreement
+    title: Credit Agreement
+    dated: 2019-09-20
+    filing_date: 2019-09-20
+    accession: "0001757073-19-000028"
+    exhibit: EX-10.8
+    url: https://www.sec.gov/Archives/edgar/data/1757073/000175707319000028/nvst-8kxex108.htm
+    amends: null
+  - id: amendment-1
+    type: amendment
+    title: Amendment No. 1 to Credit Agreement
+    dated: 2020-05-06
+    filing_date: 2020-05-11
+    accession: "0001757073-20-000017"
+    exhibit: EX-10.1
+    url: https://www.sec.gov/Archives/edgar/data/1757073/000175707320000017/ex101.htm
+    amends: original
+  - id: amendment-2
+    type: amendment
+    title: Amendment No. 2 to Credit Agreement
+    dated: 2020-05-19
+    filing_date: 2021-02-19
+    accession: "0001628280-21-002508"
+    exhibit: EX-10.9
+    url: https://www.sec.gov/Archives/edgar/data/1757073/000162828021002508/exhibit10912312020.htm
+    amends: original
+  - id: amendment-3
+    type: amendment
+    title: Amendment No. 3 to Credit Agreement
+    dated: 2021-02-09
+    filing_date: 2021-02-10
+    accession: "0001628280-21-001799"
+    exhibit: EX-10.1
+    url: https://www.sec.gov/Archives/edgar/data/1757073/000162828021001799/creditagreementamendment3.htm
+    amends: original
