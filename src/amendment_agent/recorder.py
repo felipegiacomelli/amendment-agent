@@ -150,7 +150,6 @@ class RunRecorder:
         self._tokens = dict.fromkeys(TOKEN_FIELDS, 0)
         self._pending_request = False
         self._lost_response = False
-        self._last_sent: dict[str, Any] = {}
         self._ended = False
         runs_dir.mkdir(parents=True, exist_ok=True)
         self.run_id = new_id(label)
@@ -176,20 +175,10 @@ class RunRecorder:
     def model_request(self, turn: int, params: dict[str, Any]) -> None:
         """Call just before `client.messages.create(**params)`.
 
-        Logs the request settings as sent. `messages` is logged as a count (the
-        transcript has the content); `system` and `tools` in full the first time and
-        as "<unchanged>" while they stay the same.
+        Logs the request exactly as sent, messages included, so a failed run still
+        shows what the model received.
         """
-        logged: dict[str, Any] = {}
-        for key, value in params.items():
-            if key == "messages":
-                logged["message_count"] = len(value)
-            elif key in ("system", "tools") and self._last_sent.get(key) == value:
-                logged[key] = "<unchanged>"
-            else:
-                logged[key] = _jsonable(value)
-                if key in ("system", "tools"):
-                    self._last_sent[key] = value
+        logged = {key: _jsonable(value) for key, value in params.items()}
         self._lost_response |= self._pending_request  # earlier request never answered
         self._pending_request = True
         self._write("model_request", turn=turn, params=logged)

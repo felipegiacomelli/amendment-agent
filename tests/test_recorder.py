@@ -136,11 +136,10 @@ def test_full_run_writes_requests_responses_and_tools_in_order(tmp_path: Path) -
         "max_tokens": 1024,
         "system": "S",
         "tools": [{"name": "grep"}],
-        "message_count": 1,
+        "messages": [{"role": "user", "content": "Q?"}],
     }
-    assert log[4]["params"]["system"] == "<unchanged>"
-    assert log[4]["params"]["tools"] == "<unchanged>"
-    assert log[4]["params"]["message_count"] == 2
+    assert log[4]["params"]["system"] == "S"
+    assert len(log[4]["params"]["messages"]) == 2
     assert [b["type"] for b in log[2]["response"]["content"]] == [
         "thinking",
         "tool_use",
@@ -198,3 +197,26 @@ def test_lost_response_keeps_cost_incomplete_after_a_retry(tmp_path: Path) -> No
         assert rec.cost_complete is False
         rec.end("answered", [])
     assert events(rec.path)[-1]["cost_complete"] is False
+
+
+def test_crash_keeps_the_messages_that_were_sent(tmp_path: Path) -> None:
+    sent: list[MessageParam] = [{"role": "user", "content": "Q?"}]
+    with pytest.raises(RuntimeError):
+        with RunRecorder(tmp_path, MODEL, "Q?", text_dir=tmp_path / "none") as rec:
+            rec.model_request(1, {"model": MODEL, "messages": sent})
+            raise RuntimeError("timed out")
+    request = events(rec.path)[1]
+    assert request["event"] == "model_request"
+    assert request["params"]["messages"] == [{"role": "user", "content": "Q?"}]
+
+
+def test_in_place_tool_changes_are_logged(tmp_path: Path) -> None:
+    tools = [{"name": "grep"}]
+    params: dict[str, Any] = {"model": MODEL, "tools": tools, "messages": []}
+    with RunRecorder(tmp_path, MODEL, "Q?", text_dir=tmp_path / "none") as rec:
+        rec.model_request(1, params)
+        tools.append({"name": "read_file"})
+        rec.model_request(2, params)
+        rec.end("answered", [])
+    second = events(rec.path)[2]
+    assert second["params"]["tools"] == [{"name": "grep"}, {"name": "read_file"}]
