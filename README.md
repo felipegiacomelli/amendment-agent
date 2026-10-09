@@ -47,9 +47,8 @@ uv run amendment-agent ask "What maximum Consolidated Leverage Ratio applies to 
 uv run amendment-agent eval
 ```
 
-The default model is `claude-sonnet-5-5`. `claude-opus-5-5` and `claude-haiku-5-5` are
-also supported, via `AGENT_MODEL` or `--model`. Haiku's cost uses its higher rates when a
-prompt is over 100k tokens.
+The default model is `claude-sonnet-5-5`. `claude-opus-5-5` is also supported, via
+`AGENT_MODEL` or `--model`.
 
 ## Answer format
 

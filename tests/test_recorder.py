@@ -58,30 +58,7 @@ def test_cost_treats_missing_cache_fields_as_zero() -> None:
     assert cost(MODEL, usage) == pytest.approx(PRICES[MODEL].input)
 
 
-HAIKU = "claude-haiku-5-5"
-
-
-def test_haiku_prompt_up_to_100k_uses_the_base_tier() -> None:
-    # 14_000-token prompt: 1000*0.10 + 3000*0.125 + 10000*0.01 + 200*0.50 = 675.
-    assert cost(HAIKU, response().usage) == pytest.approx(0.000675)
-    exactly = response(usage={"input_tokens": 100_000, "output_tokens": 0}).usage
-    assert cost(HAIKU, exactly) == pytest.approx(0.01)
-
-
-def test_haiku_prompt_over_100k_bills_the_whole_request_at_the_long_tier() -> None:
-    # Cache reads count toward the prompt: 50k input + 60k cache read = 110k tokens.
-    usage = response(
-        usage={
-            "input_tokens": 50_000,
-            "cache_read_input_tokens": 60_000,
-            "output_tokens": 1000,
-        }
-    ).usage
-    # 50000*0.50 + 60000*0.05 + 1000*2.50 = 30_500 per million.
-    assert cost(HAIKU, usage) == pytest.approx(0.0305)
-
-
-@pytest.mark.parametrize("model", ["claude-haiku-4-5", "gpt-x"])
+@pytest.mark.parametrize("model", ["claude-haiku-5-5", "gpt-x"])
 def test_unpriced_models_are_rejected_before_any_file_is_written(
     tmp_path: Path, model: str
 ) -> None:

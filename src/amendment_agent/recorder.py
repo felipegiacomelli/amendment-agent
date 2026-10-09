@@ -30,31 +30,15 @@ class Price:
     cache_write_5m: float
     cache_write_1h: float
     cache_read: float
-    # Rates for a request whose prompt (input + cache writes + cache reads) is over
-    # LONG_PROMPT_TOKENS; they apply to the whole request, output included.
-    long_prompt: "Price | None" = None
 
 
-LONG_PROMPT_TOKENS = 100_000
 PRICES_SOURCE = (
     "https://platform.claude.com/docs/en/about-claude/pricing, checked 2026-10-09; "
     "global routing (no inference_geo multiplier)"
 )
+# Only models priced flat across the whole context window. Haiku 5.5 is left out on
+# purpose: prompts over 100k tokens are billed at a higher tier this table can't express.
 PRICES: dict[str, Price] = {
-    "claude-haiku-5-5": Price(
-        input=0.10,
-        output=0.50,
-        cache_write_5m=0.125,
-        cache_write_1h=0.20,
-        cache_read=0.01,
-        long_prompt=Price(
-            input=0.50,
-            output=2.50,
-            cache_write_5m=0.625,
-            cache_write_1h=1.00,
-            cache_read=0.05,
-        ),
-    ),
     "claude-sonnet-5-5": Price(
         input=2.00,
         output=10.00,
@@ -82,13 +66,6 @@ TOKEN_FIELDS = (
 def cost(model: str, usage: Usage) -> float:
     """USD for one model call. Thinking tokens are already inside `output_tokens`."""
     price = PRICES[model]
-    prompt_tokens = (
-        usage.input_tokens
-        + (usage.cache_creation_input_tokens or 0)
-        + (usage.cache_read_input_tokens or 0)
-    )
-    if price.long_prompt is not None and prompt_tokens > LONG_PROMPT_TOKENS:
-        price = price.long_prompt
     if usage.cache_creation is not None:
         writes = (
             usage.cache_creation.ephemeral_5m_input_tokens * price.cache_write_5m
