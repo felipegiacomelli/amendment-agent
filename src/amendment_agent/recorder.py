@@ -149,6 +149,7 @@ class RunRecorder:
         self.total_cost_usd = 0.0
         self._tokens = dict.fromkeys(TOKEN_FIELDS, 0)
         self._pending_request = False
+        self._lost_response = False
         self._last_sent: dict[str, Any] = {}
         self._ended = False
         runs_dir.mkdir(parents=True, exist_ok=True)
@@ -169,8 +170,8 @@ class RunRecorder:
 
     @property
     def cost_complete(self) -> bool:
-        """False when a request was sent with no response recorded: cost unknown, not zero."""
-        return not self._pending_request
+        """False once any request was sent with no response recorded: cost unknown, not zero."""
+        return not (self._pending_request or self._lost_response)
 
     def model_request(self, turn: int, params: dict[str, Any]) -> None:
         """Call just before `client.messages.create(**params)`.
@@ -189,6 +190,7 @@ class RunRecorder:
                 logged[key] = _jsonable(value)
                 if key in ("system", "tools"):
                     self._last_sent[key] = value
+        self._lost_response |= self._pending_request  # earlier request never answered
         self._pending_request = True
         self._write("model_request", turn=turn, params=logged)
 

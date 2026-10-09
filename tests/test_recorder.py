@@ -188,3 +188,13 @@ def test_end_twice_writes_one_run_end(tmp_path: Path) -> None:
         rec.end("answered", [])
         rec.end("answered", [])
     assert [e["event"] for e in events(rec.path)] == ["run_start", "run_end"]
+
+
+def test_lost_response_keeps_cost_incomplete_after_a_retry(tmp_path: Path) -> None:
+    with RunRecorder(tmp_path, MODEL, "Q?", text_dir=tmp_path / "none") as rec:
+        rec.model_request(1, {"model": MODEL, "messages": []})
+        rec.model_request(1, {"model": MODEL, "messages": []})  # first got no response
+        rec.model_call(1, response())
+        assert rec.cost_complete is False
+        rec.end("answered", [])
+    assert events(rec.path)[-1]["cost_complete"] is False
