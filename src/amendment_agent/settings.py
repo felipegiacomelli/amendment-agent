@@ -32,4 +32,3 @@ class Settings(BaseSettings):
     agent_max_turns: int = 25
     agent_max_cost_usd: float = 1.00
     agent_request_timeout_s: float = 120.0
-    agent_max_retries: int = 2

@@ -40,6 +40,7 @@ def run_agent(
     - Record each request with `recorder.model_request` before sending it and
       `recorder.model_call` after; each tool run with `recorder.tool_call`; finish
       with `recorder.end(stop_reason, messages)`.
+    - The client has SDK retries off: a failed request raises to the loop, and a retry is a new `model_request`.
     - Own the message history: build `messages` in the loop and pass it to
       `recorder.end`.
     - Always stop explicitly: return a `StopReason` on every path.

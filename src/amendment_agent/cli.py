@@ -63,10 +63,9 @@ def prepare(settings: Settings, model_flag: str | None) -> tuple[Anthropic, str]
     )
     if not key:
         return "ANTHROPIC_API_KEY is not set; add it to .env (see .env.example)"
+    # Retries are the loop's job: an SDK retry would hide a request whose cost is unknown.
     client = Anthropic(
-        api_key=key,
-        timeout=settings.agent_request_timeout_s,
-        max_retries=settings.agent_max_retries,
+        api_key=key, timeout=settings.agent_request_timeout_s, max_retries=0
     )
     return client, model
 
@@ -77,7 +76,6 @@ def run_config(settings: Settings) -> dict[str, object]:
         "max_turns": settings.agent_max_turns,
         "max_cost_usd": settings.agent_max_cost_usd,
         "request_timeout_s": settings.agent_request_timeout_s,
-        "max_retries": settings.agent_max_retries,
     }
 
 
