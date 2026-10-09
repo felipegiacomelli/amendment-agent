@@ -1,0 +1,65 @@
+[project]
+name = "amendment-agent"
+version = "0.1.0"
+description = "An autonomous agent that answers questions about a credit agreement and its amendments, citing the clause currently in force."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=1.12.1",
+    "attrs>=26.1",
+    "httpx>=0.28.1",
+    "pydantic>=2.14",
+    "pydantic-settings>=2.15",
+    "pyyaml>=6.0.3",
+]
+
+[project.scripts]
+amendment-agent = "amendment_agent.cli:main"
+
+[dependency-groups]
+dev = [
+    "black>=26.10",
+    "mypy>=2.4",
+    "pre-commit>=4.6",
+    "pytest>=9.1",
+    "pytest-cov>=7.1",
+    "ruff>=0.16",
+    "types-pyyaml>=6.0.12",
+]
+
+[build-system]
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv]
+required-version = ">=0.12"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]  # black owns line length; long string literals can't be split
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.mypy]
+strict = true
+files = ["src"]  # Task 3 adds "tests" once it exists
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers"
+
+[tool.coverage.run]
+source = ["amendment_agent"]
+branch = true
+
+[tool.coverage.report]
+exclude_also = ["raise NotImplementedError"]
+show_missing = true
+# Ratcheted to the measured value in Task 11; it only ever goes up.
+fail_under = 0
