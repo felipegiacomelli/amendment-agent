@@ -42,16 +42,18 @@ bodies unless the maintainer explicitly asks in the current session. Plumbing
 
 - Python 3.12 idioms only:
   - no `from __future__ import annotations`;
-  - no `typing.Optional` or `typing.List`;
+  - no `typing.Optional`, `Union`, `List`, `Dict` or `Callable` (use `X | None`,
+    builtin generics, `collections.abc`);
   - PEP 695 `type` aliases, `typing.override`, `pathlib`;
-  - break import cycles by moving types into their own module.
+  - no `TYPE_CHECKING` to break import cycles: move shared types into their own
+    module.
 - uv, with versions pinned in `uv.lock`. CI uses `uv sync --frozen`.
 - black (88), ruff (`E F I B UP`; ruff `I` replaces isort), `mypy --strict` on `src`
   and `tests`.
 - `attrs` (`@attrs.frozen`) for plain data classes, never `dataclasses`. pydantic only
   at trust boundaries: settings, manifest, `schema.py`.
 - Tests are offline and deterministic: no network, no API key, never the real
-  `run_agent`. The coverage floor only ever goes up.
+  stubs (agent, tools, graders). The coverage floor only ever goes up.
 - Contracts:
   - text format: one block per line, `[Page N]` markers, table cells joined by ` | `;
   - the agent's answer is `outputs/<run_id>/answer.json`, matching `schema.Answer`,
@@ -62,8 +64,8 @@ bodies unless the maintainer explicitly asks in the current session. Plumbing
 
 ## Evals
 
-- Compare results only when `cases_sha256` and the git commit (graders) match. If the
-  case set changed, rerun the older version on the new set or report them separately.
+- Compare results only when `cases_sha256`, `case_ids` and the git commit (graders)
+  match. If the case set changed, rerun the older version on the new set or report them separately.
 - Regression cases found in real runs may be added. Add them openly, noting the run
   that revealed them. Keep earlier results files.
 - Graders fail closed. The eval reports and never gates CI; CI has no API key.
