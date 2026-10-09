@@ -22,7 +22,9 @@ RESULTS_DIR = EVALS_DIR / "results"
 class Settings(BaseSettings):
     """Each command checks only the fields it needs (see cli.py)."""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env", extra="ignore", env_ignore_empty=True
+    )
 
     anthropic_api_key: SecretStr | None = None
     sec_user_agent: str | None = None
