@@ -57,9 +57,12 @@ Each run writes `outputs/<run_id>/answer.json`:
 ```json
 {
   "status": "answered",
-  "value": "3.75:1",
-  "explanation": "One or two sentences.",
-  "citations": [{"document": "amendment-1", "section": "7.06(a)", "lines": [1363, 1363]}]
+  "value": "not tested",
+  "explanation": "Amendment No. 1 and Amendment No. 3 both leave the quarter ending on or about September 30, 2020 outside the leverage test.",
+  "citations": [
+    {"document": "amendment-1", "section": "7.06(a)", "lines": [1363, 1363]},
+    {"document": "amendment-3", "section": "7.06(a)", "lines": [22, 22]}
+  ]
 }
 ```
 
