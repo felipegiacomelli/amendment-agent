@@ -118,3 +118,13 @@ def test_extract_all_missing_raw_file_points_to_fetch(
     manifest = make_manifest("https://www.sec.gov/Archives/edgar/data/1/a.htm")
     with pytest.raises(FileNotFoundError, match="amendment-agent fetch"):
         extract_all(manifest, tmp_path / "raw", tmp_path / "text")
+
+
+def test_unclosed_tr_and_td_rows() -> None:
+    html = "<table><tr><td>A</td><td>&nbsp;</td><td>B<tr><td>1<td>&#160;<td>2</table>"
+    assert html_to_lines(html) == ["[Page 1]", "A | B", "1 | 2"]
+
+
+def test_unclosed_head_ends_at_body() -> None:
+    html = "<html><head><title>T</title><body><p>Body text</p></body></html>"
+    assert html_to_lines(html) == ["[Page 1]", "Body text"]

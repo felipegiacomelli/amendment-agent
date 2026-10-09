@@ -72,6 +72,8 @@ class _Parser(HTMLParser):
 
     @override
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "body":
+            self._skip_depth = 0  # an unclosed <head> ends at <body>
         if tag in SKIP_TAGS:
             self._skip_depth += 1
             return
