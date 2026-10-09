@@ -19,7 +19,7 @@ from amendment_agent.recorder import RunRecorder, git_revision, new_id
 from amendment_agent.schema import ANSWER_FILENAME, EvalCase, load_answer
 
 COMPARABILITY = (
-    "Compare results only when cases_sha256 and the git commit (graders) match; "
+    "Compare results only when cases_sha256, case_ids and the git commit (graders) match; "
     "otherwise rerun the older version on the current case set."
 )
 
