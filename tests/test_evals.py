@@ -156,6 +156,29 @@ def test_agent_exception_fails_the_case_and_the_eval_continues(
     assert second_result.answer.passed
 
 
+def test_unreadable_answer_file_fails_the_case_and_the_eval_continues(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_read_text = Path.read_text
+    denied: list[Path] = []
+
+    def read_text(self: Path, *args: Any, **kwargs: Any) -> str:
+        if self.name == "answer.json" and not denied:  # the first case's file
+            denied.append(self)
+            raise PermissionError("denied")
+        return real_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", read_text)
+    second = CASE.model_copy(update={"id": "case-2"})
+    first_result, second_result = run(
+        tmp_path, monkeypatch, agent_writing(GOOD), cases=[CASE, second]
+    )
+    assert not first_result.answer.passed and not first_result.citations.passed
+    assert "unreadable answer file" in first_result.answer.reason
+    assert second_result.answer.passed and second_result.citations.passed
+    assert len(list((tmp_path / "results").glob("*.json"))) == 1
+
+
 def test_grader_exception_fails_only_that_grade(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

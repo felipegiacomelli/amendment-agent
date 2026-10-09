@@ -103,3 +103,17 @@ def test_load_cases_reports_line_and_duplicates(tmp_path: Path) -> None:
     path.write_text(f"{line}\n{{}}\n", encoding="utf-8")
     with pytest.raises(ValueError, match=r"cases\.jsonl:2"):
         load_cases(path)
+
+
+def test_unreadable_answer_file_is_a_value_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "answer.json"
+    path.write_text(json.dumps(ANSWER), encoding="utf-8")
+
+    def denied(self: Path, *args: Any, **kwargs: Any) -> str:
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(Path, "read_text", denied)
+    with pytest.raises(ValueError, match="unreadable answer file"):
+        load_answer(path)

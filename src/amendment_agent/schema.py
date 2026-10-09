@@ -62,6 +62,8 @@ def load_answer(path: Path) -> Answer:
         raise ValueError(f"no answer file at {path}")
     try:
         return Answer.model_validate_json(path.read_text(encoding="utf-8"))
+    except OSError as error:
+        raise ValueError(f"unreadable answer file {path}: {error}") from error
     except ValidationError as error:
         raise ValueError(f"invalid answer file {path}: {error}") from error
 
