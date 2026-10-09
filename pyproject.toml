@@ -1,7 +1,7 @@
 [project]
 name = "amendment-agent"
 version = "0.1.0"
-description = "An autonomous agent that answers questions about a credit agreement and its amendments, citing the clause currently in force."
+description = "An autonomous agent that answers questions about a credit agreement and its amendments, citing the provision that applies to the period asked about."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
