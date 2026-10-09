@@ -75,7 +75,7 @@ def test_non_sec_url_rejected() -> None:
 
 
 def test_unquoted_cik_rejected_at_cik(tmp_path: Path) -> None:
-    # YAML 1.1 reads 0001757073 as an octal int; it must fail, not become 1757073.
+    # YAML 1.1 reads 0001757073 as an octal int; it must fail, not become the octal int 515643.
     valid = MANIFEST_PATH.read_text(encoding="utf-8")
     unquoted = valid.replace('cik: "0001757073"', "cik: 0001757073")
     assert unquoted != valid
