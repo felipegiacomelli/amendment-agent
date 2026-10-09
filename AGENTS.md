@@ -64,8 +64,10 @@ bodies unless the maintainer explicitly asks in the current session. Plumbing
 
 ## Evals
 
-- Compare results only when `cases_sha256`, `case_ids` and the git commit (graders)
-  match. If the case set changed, rerun the older version on the new set or report them separately.
+- Compare results only when `cases_sha256`, `case_ids` and `grading_sha256` match.
+  The git commit identifies the agent version; report the model and corpus with any
+  comparison. If the case set or grading changed, rerun the older version on the new
+  set or report them separately.
 - Regression cases found in real runs may be added. Add them openly, noting the run
   that revealed them. Keep earlier results files.
 - Graders fail closed. The eval reports and never gates CI; CI has no API key.

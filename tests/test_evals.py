@@ -111,6 +111,9 @@ def test_passing_case_links_transcript_output_and_results(
     )
     assert run_start["config"]["cases_sha256"] == cases_sha
     assert run_start["config"]["eval_id"] == payload["eval_id"]
+    assert payload["grading_sha256"] == evals.grading_fingerprint()
+    assert len(payload["grading_sha256"]) == 64
+    assert run_start["config"]["grading_sha256"] == payload["grading_sha256"]
 
 
 @pytest.mark.parametrize(

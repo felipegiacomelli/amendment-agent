@@ -19,9 +19,20 @@ from amendment_agent.recorder import RunRecorder, git_revision, new_id
 from amendment_agent.schema import ANSWER_FILENAME, EvalCase, load_answer
 
 COMPARABILITY = (
-    "Compare results only when cases_sha256, case_ids and the git commit (graders) match; "
-    "otherwise rerun the older version on the current case set."
+    "Compare results only when cases_sha256, case_ids and grading_sha256 match; "
+    "the git commit identifies the agent version. Report the model and corpus with "
+    "any comparison. Otherwise rerun the older version on the current case set."
 )
+GRADING_FILES = ("graders.py", "schema.py", "evals.py")
+
+
+def grading_fingerprint() -> str:
+    """sha256 over the grading code as it is on disk (uncommitted edits count)."""
+    package = Path(__file__).parent
+    digest = hashlib.sha256()
+    for name in GRADING_FILES:
+        digest.update(name.encode() + b"\0" + (package / name).read_bytes())
+    return digest.hexdigest()
 
 
 @attrs.frozen
@@ -148,6 +159,7 @@ def write_results(
     model: str,
     cases_path: Path,
     cases_sha256: str,
+    grading_sha256: str,
     config: dict[str, Any],
     results_dir: Path,
 ) -> Path:
@@ -159,6 +171,7 @@ def write_results(
         "git": git_revision(),
         "cases_path": str(cases_path),
         "cases_sha256": cases_sha256,
+        "grading_sha256": grading_sha256,
         "case_ids": [r.case_id for r in results],
         "config": config,
         "comparability": COMPARABILITY,
@@ -186,7 +199,12 @@ def run_eval(
     """Run every case, print the table, write a results file. Reports, never gates."""
     eval_id = new_id(model)
     cases_sha256 = hashlib.sha256(cases_path.read_bytes()).hexdigest()
-    config = config | {"eval_id": eval_id, "cases_sha256": cases_sha256}
+    grading_sha256 = grading_fingerprint()
+    config = config | {
+        "eval_id": eval_id,
+        "cases_sha256": cases_sha256,
+        "grading_sha256": grading_sha256,
+    }
     results = [
         run_case(
             case,
@@ -208,6 +226,7 @@ def run_eval(
         model=model,
         cases_path=cases_path,
         cases_sha256=cases_sha256,
+        grading_sha256=grading_sha256,
         config=config,
         results_dir=results_dir,
     )
