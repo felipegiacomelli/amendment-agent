@@ -40,6 +40,9 @@ def run_agent(
     - Record each request with `recorder.model_request` before sending it and
       `recorder.model_call` after; each tool run with `recorder.tool_call`; finish
       with `recorder.end(stop_reason, messages)`.
+    - Own the message history: build `messages` in the loop and pass it to
+      `recorder.end`.
+    - Always stop explicitly: return a `StopReason` on every path.
     - Tool failures go back to the model as error results; they never raise.
     - Return `ANSWERED` only if `answer.json` was written during this run.
     - Tool choice stays `auto`: forced tool choice is an HTTP 400 on Sonnet 5.5 and
