@@ -9,7 +9,7 @@ document set, and cites the document, section and line range.
 
 The agent is designed to decide its own steps, the way a coding agent works through a repository.
 It lists the documents, greps for terms, reads line ranges and writes an answer file.
-It has four tools (`list_files`, `grep`, `read_file`, `write_output`) over a folder of
+It has four tools (`list_files`, `grep`, `read_file`, `write_answer`) over a folder of
 plain-text filings, and no search index. Reads are confined to the filings and writes
 to the run's own output folder. A run is meant to end when the answer is written, or at a turn,
 cost or repetition limit.
