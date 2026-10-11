@@ -14,7 +14,12 @@ from amendment_agent.schema import (
 )
 from amendment_agent.settings import CASES_PATH
 
-CITATION = {"document": "amendment-1", "section": "7.06(a)", "lines": [10, 12]}
+CITATION = {
+    "document": "amendment-1",
+    "section": "7.06(a)",
+    "lines": [10, 12],
+    "quote": "shall not exceed 3.75 to 1.00",
+}
 ANSWER: dict[str, Any] = {
     "status": "answered",
     "value": "not tested",

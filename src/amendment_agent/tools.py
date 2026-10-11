@@ -14,13 +14,40 @@ import attrs
 from anthropic.types import ToolParam
 from pydantic import ValidationError
 
-from amendment_agent.schema import ANSWER_FILENAME, Answer, AnswerStatus
+from amendment_agent.schema import ANSWER_FILENAME, Answer, AnswerStatus, Citation
 from amendment_agent.settings import OUTPUT_DIR, TEXT_DIR
 
 # ponytail: fixed caps keep one call from flooding the context; tune if runs need more.
 MAX_GREP_HITS = 100
 MAX_HIT_CHARS = 400
 MAX_READ_LINES = 200
+# Shorter quotes ("the Company") match almost anywhere and prove nothing.
+MIN_QUOTE_CHARS = 20
+# Lines are whole blocks (a paragraph, a definition), so a provision fits in a few.
+# A wide range would let any true quote from far away pass the quote check.
+MAX_CITATION_LINES = 20
+
+# Text files are one block per line, so a section heading is a line that starts with
+# a section number and a capitalised word: "7.11 Burdensome Agreements. ..." in the
+# credit agreement (original, and the restated one in amendment-1), "1.Amendments to
+# Credit Agreement. ..." in the amendments. Not table-of-contents rows ("7.11 |
+# Burdensome Agreements 101") or wrapped text ("9.10 of the Credit Agreement").
+# ponytail: numbered items in the exhibit forms also match; citing an exhibit form
+# reports its item number as the section. Parse exhibits if that ever matters.
+_HEADING = re.compile(r"^(?P<number>\d{1,2}\.\d{2}(?= [A-Z])|\d{1,2}(?=\.[A-Z]))")
+# The section number a citation names: "7.06" in "Section 7.06(a)", "1" in "1(b)".
+_SECTION_NUMBER = re.compile(r"\d{1,2}(?:\.\d{2})?")
+_PUNCTUATION = str.maketrans(
+    {
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u00a0": " ",
+    }
+)
 
 
 @attrs.frozen
@@ -107,8 +134,9 @@ TOOL_SCHEMAS: list[ToolParam] = [
                                 "items": {"type": "integer"},
                                 "description": "",
                             },
+                            "quote": {"type": "string", "description": ""},
                         },
-                        "required": ["document", "section", "lines"],
+                        "required": ["document", "section", "lines", "quote"],
                         "additionalProperties": False,
                     },
                 },
@@ -201,6 +229,65 @@ def read_file(
     return ToolResult(text=f"{header}\n{body}", is_error=False)
 
 
+def _normalize(text: str) -> str:
+    """Straight quotes and dashes, single spaces: what a copied quote may lose."""
+    return " ".join(text.translate(_PUNCTUATION).split())
+
+
+def section_at(lines: list[str], line: int) -> str | None:
+    """Number of the section heading at or before 1-based `line`, if any."""
+    for text in reversed(lines[:line]):
+        if " | " not in text and (match := _HEADING.match(text)):
+            return match["number"]
+    return None
+
+
+def citation_problem(citation: Citation, text_dir: Path) -> str | None:
+    """Why `citation` isn't backed by `text_dir`, or None if it is.
+
+    Checks that the document exists, the range is inside it, at most
+    MAX_CITATION_LINES long and within one section, the quote appears in those lines,
+    and the section matches that section's heading (by number: a "(a)" subsection
+    isn't checked). Lines are split as read_file splits them. Does not check that the
+    lines support the answer.
+    """
+    # TODO: two more deterministic checks. (1) The agent read the cited lines this
+    # run: read_file records what it returned in a per-run read log that run_agent
+    # creates and passes through execute_tool. (2) The answer's value appears in a
+    # quote, using the value normalisation grade_answer needs. Whether the lines
+    # support the answer needs an LLM judge, so it stays in the eval.
+    name = citation.document
+    file = _resolve(f"{name}.txt", text_dir)
+    if file is None or not file.is_file():
+        return f"no document {name!r} (use the file name without .txt)"
+    lines = _read_lines(file)
+    start, end = citation.lines
+    if end > len(lines):
+        return f"{name} lines {start}-{end} are past its end ({len(lines)} lines)"
+    if end - start + 1 > MAX_CITATION_LINES:
+        return (
+            f"{name} lines {start}-{end} span {end - start + 1} lines; cite at most "
+            f"{MAX_CITATION_LINES}, around the quoted text"
+        )
+    quote = _normalize(citation.quote)
+    if len(quote) < MIN_QUOTE_CHARS:
+        return f"quote for {name} lines {start}-{end} is under {MIN_QUOTE_CHARS} characters"
+    if quote not in _normalize(" ".join(lines[start - 1 : end])):
+        return f"quote not found in {name} lines {start}-{end}; copy it exactly"
+    cited = _SECTION_NUMBER.search(citation.section)
+    actual = section_at(lines, start)
+    if actual is None:
+        return f"{name} line {start} is not under a numbered section heading"
+    if cited is None or cited.group() != actual:
+        return f"{name} line {start} is in section {actual}, not {citation.section!r}"
+    if (last := section_at(lines, end)) != actual:
+        return (
+            f"{name} lines {start}-{end} run from section {actual} into {last}; "
+            "cite one section"
+        )
+    return None
+
+
 def write_answer(
     status: str,
     explanation: str,
@@ -208,10 +295,13 @@ def write_answer(
     value: str | None = None,
     *,
     root: Path = OUTPUT_DIR,
+    text_dir: Path = TEXT_DIR,
 ) -> ToolResult:
-    """Validate the answer against `schema.Answer` and write `root/answer.json`.
+    """Validate the answer and write `root/answer.json`.
 
-    The loop passes the run's output_dir as root. A second call overwrites the first.
+    Valid means it passes `schema.Answer` and every citation points at real lines in
+    `text_dir`. The loop passes the run's output_dir as root. A second call
+    overwrites the first.
     """
     try:
         answer = Answer.model_validate(
@@ -224,6 +314,13 @@ def write_answer(
         )
     except ValidationError as e:
         return _error(f"answer not written, fix and call again: {e}")
+    problems = [
+        problem
+        for citation in answer.citations
+        if (problem := citation_problem(citation, text_dir))
+    ]
+    if problems:
+        return _error("answer not written, fix and call again: " + "; ".join(problems))
     root.mkdir(parents=True, exist_ok=True)
     (root / ANSWER_FILENAME).write_text(
         answer.model_dump_json(indent=2) + "\n", encoding="utf-8"
@@ -246,8 +343,9 @@ def execute_tool(
     fn = TOOL_MAP.get(name)
     if fn is None:
         return _error(f"unknown tool {name!r}; available: {', '.join(TOOL_MAP)}")
-    if "root" in tool_input:  # root is ours to set, never the model's
-        return _error("unexpected argument 'root'")
+    reserved = sorted(tool_input.keys() & {"root", "text_dir"})
+    if reserved:  # directories are ours to set, never the model's
+        return _error(f"unexpected argument {reserved[0]!r}")
     kwargs = dict(tool_input)
     if name == "write_answer":
         kwargs["root"] = output_dir

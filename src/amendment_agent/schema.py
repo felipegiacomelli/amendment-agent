@@ -16,14 +16,15 @@ class AnswerStatus(StrEnum):
 
 
 class Citation(BaseModel):
-    """Evidence location: a document id, a section, and an inclusive 1-based line range
-    in data/text/<document>.txt."""
+    """Evidence location: a document id, a section, an inclusive 1-based line range
+    in data/text/<document>.txt, and a verbatim quote from those lines."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     document: str
-    section: str
+    section: str  # the numbered heading in `document` containing the lines
     lines: tuple[int, int]
+    quote: str
 
     @model_validator(mode="after")
     def check_lines(self) -> Self:

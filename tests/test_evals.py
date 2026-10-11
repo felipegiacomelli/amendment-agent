@@ -35,7 +35,14 @@ GOOD = json.dumps(
         "status": "answered",
         "value": "3.75:1",
         "explanation": "x",
-        "citations": [{"document": "original", "section": "7.06(a)", "lines": [1, 2]}],
+        "citations": [
+            {
+                "document": "original",
+                "section": "7.06(a)",
+                "lines": [1, 2],
+                "quote": "shall not exceed 3.75 to 1.00",
+            }
+        ],
     }
 )
 
