@@ -198,10 +198,38 @@ def decode(raw: bytes) -> str:
         return raw.decode("cp1252", errors="replace")
 
 
+# A table-of-contents row ("1.01 | Defined Terms | 1" or "1.01 | Defined Terms 1") and
+# a body heading whose number the filing lost (".Defined Terms").
+TOC_ROW = re.compile(r"^(\d{1,2}\.\d{2}) \| (.+?)(?: \|)?(?: \d+)?$")
+UNNUMBERED_HEADING = re.compile(r"^\.([A-Z][^.]*)$")
+
+
+def restore_heading_numbers(lines: list[str]) -> list[str]:
+    """Put back a section number the filing dropped from a body heading, taken from
+    the same document's table of contents: ".Defined Terms" -> "1.01 Defined Terms".
+
+    Amendment No. 1's restated agreement has this defect, which put every definition
+    under the wrong section. Line count is unchanged, so line numbers stay stable.
+    """
+    # ponytail: exact title match with the contents row; a title listed twice is
+    # ambiguous and left alone.
+    numbers: dict[str, str | None] = {}
+    for line in lines:
+        if match := TOC_ROW.match(line):
+            title = match[2].strip()
+            numbers[title] = None if title in numbers else match[1]
+    restored = []
+    for line in lines:
+        match = UNNUMBERED_HEADING.match(line)
+        number = numbers.get(match[1].strip()) if match else None
+        restored.append(f"{number} {match[1].strip()}" if match and number else line)
+    return restored
+
+
 def extract_file(src: Path) -> str:
     text = decode(src.read_bytes())
     lines = text_to_lines(text) if src.suffix.lower() == ".txt" else html_to_lines(text)
-    return "\n".join(lines) + "\n"
+    return "\n".join(restore_heading_numbers(lines)) + "\n"
 
 
 def write_index(manifest: Manifest, text_dir: Path) -> Path:
