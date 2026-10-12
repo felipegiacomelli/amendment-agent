@@ -138,8 +138,20 @@ def test_a_more_specific_section_passes(text_dir: Path) -> None:
 
 @pytest.mark.parametrize("section", ["7.06", "7.06(a)"])
 def test_a_broader_or_sibling_section_fails(text_dir: Path, section: str) -> None:
-    grade = grade_citations(case(), answer("2.00:1", cite(section=section)), text_dir)
-    assert not grade.passed and "missing: amendment-1 §7.06(b)" in grade.reason
+    expected = [{"document": "original", "section": "7.06(b)"}]
+    cited = cite("original", section, quote=LEVERAGE)  # lines don't name 7.06(b)
+    grade = grade_citations(
+        case(expected_citations=expected), answer("x", cited), text_dir
+    )
+    assert not grade.passed and "missing: original §7.06(b)" in grade.reason
+
+
+def test_a_wrong_label_on_lines_naming_the_expected_section_passes(
+    text_dir: Path,
+) -> None:
+    # Graded by where it points: the lines say "Section 7.06(b) ... is amended".
+    grade = grade_citations(case(), answer("2.00:1", cite(section="7.06(a)")), text_dir)
+    assert grade.passed
 
 
 def test_a_missing_expected_citation_fails(text_dir: Path) -> None:
@@ -175,3 +187,23 @@ def test_a_citation_the_documents_dont_back_fails(
 ) -> None:
     grade = grade_citations(case(), answer("2.00:1", citation), text_dir)
     assert not grade.passed and problem in grade.reason
+
+
+def test_an_amendment_heading_citation_meets_the_section_its_lines_name(
+    text_dir: Path,
+) -> None:
+    grade = grade_citations(case(), answer("2.00:1", cite(section="1")), text_dir)
+    assert grade.passed and grade.warning == ""
+
+
+@pytest.mark.parametrize("expected", ["7.06(a)", "7.03"])
+def test_lines_naming_another_section_dont_meet_it(
+    text_dir: Path, expected: str
+) -> None:
+    expected_citations = [{"document": "amendment-1", "section": expected}]
+    grade = grade_citations(
+        case(expected_citations=expected_citations),
+        answer("2.00:1", cite(section="1")),
+        text_dir,
+    )
+    assert not grade.passed and f"missing: amendment-1 §{expected}" in grade.reason

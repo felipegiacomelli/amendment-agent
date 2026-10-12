@@ -9,8 +9,14 @@ from pathlib import Path
 
 import attrs
 
-from amendment_agent.citations import citation_problem
-from amendment_agent.schema import Answer, AnswerStatus, Citation, EvalCase
+from amendment_agent.citations import citation_problem, read_lines
+from amendment_agent.schema import (
+    Answer,
+    AnswerStatus,
+    Citation,
+    EvalCase,
+    ExpectedCitation,
+)
 
 # "3.75:1", "3.75 to 1.00", "3.75x": a number, then ":" or "to" and a number, or "x".
 _RATIO = re.compile(r"(\d+(?:\.\d+)?)\s*(?:(?::|\bto\b)\s*(\d+(?:\.\d+)?)|x\b)")
@@ -51,10 +57,12 @@ def grade_citations(case: EvalCase, answer: Answer, text_dir: Path) -> Grade:
     in `text_dir/<document>.txt`.
 
     Every citation must also pass `citation_problem`: quote in the lines, section the
-    heading above them or named in them. A cited section matches an expected one if it
-    is the same or more specific: "7.06(a)" is met by "7.06(a)(i)", not by "7.06" or
-    "7.06(b)". Citations matching no expected one (extra or superseded) don't fail
-    the grade; they are listed in `warning`.
+    heading above them or named in them. A citation meets an expected one in the same
+    document if its section is the same or more specific ("7.06(a)" is met by
+    "7.06(a)(i)", not by "7.06" or "7.06(b)"), or if its lines name the expected
+    section ("Section 7.06(a) ... is amended", cited under the amendment's own heading
+    "1", as the citation convention allows). Citations meeting no expected one (extra
+    or superseded) don't fail the grade; they are listed in `warning`.
 
     Proves: the locators are real and point where expected. Does not prove: that the
     cited lines support the answer, or that a cited subsection like "(a)" is the one
@@ -67,21 +75,21 @@ def grade_citations(case: EvalCase, answer: Answer, text_dir: Path) -> Grade:
     ]
     if problems:
         return Grade(False, "; ".join(problems))
+
+    def meets(c: Citation, e: ExpectedCitation) -> bool:
+        return c.document == e.document and (
+            _covers(e.section, c.section) or _names(e.section, c, text_dir)
+        )
+
     missing = [
         f"{e.document} §{e.section}"
         for e in case.expected_citations
-        if not any(
-            c.document == e.document and _covers(e.section, c.section)
-            for c in answer.citations
-        )
+        if not any(meets(c, e) for c in answer.citations)
     ]
     extra = [
         _label(c)
         for c in answer.citations
-        if not any(
-            c.document == e.document and _covers(e.section, c.section)
-            for e in case.expected_citations
-        )
+        if not any(meets(c, e) for e in case.expected_citations)
     ]
     warning = f"extra: {', '.join(extra)}" if extra else ""
     if missing:
@@ -114,6 +122,18 @@ def _covers(expected: str, cited: str) -> bool:
     """`cited` is `expected` or a subsection of it."""
     e, c = _section(expected), _section(cited)
     return e is not None and c is not None and (c == e or c.startswith(e + "("))
+
+
+def _names(expected: str, citation: Citation, text_dir: Path) -> bool:
+    """The cited lines name `expected` or a subsection of it: "Section 7.06(a)"."""
+    e = _section(expected)
+    if e is None:
+        return False
+    start, end = citation.lines
+    text = " ".join(read_lines(text_dir / f"{citation.document}.txt")[start - 1 : end])
+    # "Section 7.06" but not "Section 7.061" or "Section 7.06.1".
+    named = re.compile(rf"\bsections? {re.escape(e)}(?![.\d]\d)")
+    return named.search(text.lower()) is not None
 
 
 def _label(citation: Citation) -> str:
