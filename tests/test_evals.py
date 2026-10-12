@@ -11,7 +11,7 @@ from amendment_agent import evals
 from amendment_agent.agent import StopReason
 from amendment_agent.evals import CaseResult, format_table, run_eval
 from amendment_agent.graders import Grade
-from amendment_agent.recorder import RunRecorder
+from amendment_agent.recorder import RunRecorder, read_events
 from amendment_agent.schema import EvalCase
 
 type FakeAgent = Callable[..., StopReason]
@@ -111,11 +111,7 @@ def test_passing_case_links_transcript_output_and_results(
     assert payload["cases_sha256"] == cases_sha and payload["model"] == MODEL
     assert payload["results"][0]["run_id"] == result.run_id
     assert set(payload["git"]) == {"commit", "dirty"}
-    run_start = json.loads(
-        (tmp_path / "runs" / f"{result.run_id}.jsonl")
-        .read_text(encoding="utf-8")
-        .splitlines()[0]
-    )
+    run_start = read_events(tmp_path / "runs" / f"{result.run_id}.jsonl")[0]
     assert run_start["config"]["cases_sha256"] == cases_sha
     assert run_start["config"]["eval_id"] == payload["eval_id"]
     assert payload["grading_sha256"] == evals.grading_fingerprint()

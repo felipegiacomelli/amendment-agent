@@ -1,12 +1,11 @@
 import hashlib
-import json
 from pathlib import Path
 from typing import Any
 
 import pytest
 from anthropic.types import Message, MessageParam
 
-from amendment_agent.recorder import PRICES, RunRecorder, cost
+from amendment_agent.recorder import PRICES, RunRecorder, cost, read_events
 
 MODEL = "claude-sonnet-5-5"
 USAGE: dict[str, Any] = {
@@ -39,7 +38,7 @@ def response(
 
 
 def events(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    return read_events(path)
 
 
 def test_cost_uses_the_verified_price_table() -> None:
@@ -220,3 +219,12 @@ def test_in_place_tool_changes_are_logged(tmp_path: Path) -> None:
         rec.end("answered", [])
     second = events(rec.path)[2]
     assert second["params"]["tools"] == [{"name": "grep"}, {"name": "read_file"}]
+
+
+def test_events_are_indented_and_read_back(tmp_path: Path) -> None:
+    with RunRecorder(tmp_path, MODEL, "café?") as rec:
+        rec.end("answered", [])
+    text = rec.path.read_text(encoding="utf-8")
+    assert '\n    "event": "run_start",' in text  # indented for people
+    assert "café?" in text  # non-ASCII kept readable
+    assert [e["event"] for e in read_events(rec.path)] == ["run_start", "run_end"]
