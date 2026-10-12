@@ -122,7 +122,9 @@ def run_case(
 
 def format_table(results: list[CaseResult]) -> str:
     def mark(grade: Grade) -> str:
-        return "✓" if grade.passed else "✗"
+        if not grade.passed:
+            return "✗"
+        return "✓*" if grade.warning else "✓"
 
     lines = [
         f"{'case':<26} {'category':<16} {'answer':<6} {'cite':<5} {'stop':<15} {'turns':>5} {'cost $':>9}"
@@ -149,6 +151,8 @@ def format_table(results: list[CaseResult]) -> str:
         for kind, grade in (("answer", r.answer), ("citations", r.citations)):
             if not grade.passed:
                 lines.append(f"  {r.case_id} {kind}: {grade.reason}")
+            elif grade.warning:
+                lines.append(f"  {r.case_id} {kind} (passed*): {grade.warning}")
     return "\n".join(lines)
 
 

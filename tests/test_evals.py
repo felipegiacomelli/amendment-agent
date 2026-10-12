@@ -214,3 +214,16 @@ def test_table_shows_marks_totals_reasons_and_incomplete_cost() -> None:
     assert "case-1" in table and "superseded" in table and "✓" in table and "✗" in table
     assert "answer 1/1" in table and "citations 0/1" in table
     assert "wrong section" in table and "0.0200?" in table
+
+
+def test_table_flags_a_pass_with_a_warning() -> None:
+    ok, flagged = Grade(True, "ok"), Grade(True, "ok", "extra: amendment-3 §1 [21-22]")
+    table = format_table(
+        [
+            CaseResult(
+                "case-1", "superseded", ok, flagged, "answered", 3, 0.02, True, "r"
+            )
+        ]
+    )
+    assert "✓*" in table and "citations 1/1" in table
+    assert "case-1 citations (passed*): extra: amendment-3 §1 [21-22]" in table
