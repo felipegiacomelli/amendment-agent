@@ -32,7 +32,8 @@ version; conditions in the text can still change what applies.
 | EDGAR fetcher (rate-limited), text extraction, document index | implemented, tested offline |
 | Run recorder: JSONL transcript with config, git revision, corpus hashes, every request, response, tool call, usage and cost | implemented, tested offline |
 | Answer and eval-case schema; eval runner with fail-closed grading and comparable results files | implemented, tested offline |
-| Agent loop, tools, graders | in progress, hand-written |
+| Agent loop and tools | hand-written, tested offline with a scripted fake client |
+| Graders | in progress, hand-written |
 
 ## Quickstart
 
@@ -58,22 +59,81 @@ Each run writes `outputs/<run_id>/answer.json`:
 {
   "status": "answered",
   "value": "not tested",
-  "explanation": "Amendment No. 1 and Amendment No. 3 both leave the quarter ending on or about September 30, 2020 outside the leverage test.",
+  "explanation": "Amendment No. 1 restated Section 7.06(a) to test the maximum Consolidated Leverage Ratio (3.75:1) only for the quarter ending about March 31, 2020 and for quarters ending on or after about June 30, 2021. [...]",
   "citations": [
-    {"document": "amendment-1", "section": "7.06(a)", "lines": [1363, 1363]},
-    {"document": "amendment-3", "section": "7.06(a)", "lines": [22, 22]}
+    {
+      "document": "amendment-1",
+      "section": "7.06(a)",
+      "lines": [1363, 1363],
+      "quote": "(i) as of the end of the fiscal quarter of the Company ending on or about March 31, 2020 to be greater than 3.75:1, and (ii) [...]"
+    }
   ]
 }
 ```
 
-`status` can also be `insufficient_evidence`. The transcript for the same run is
+`value` is the bare answer, since it is graded on its own; everything else goes in
+`explanation`, which is not graded. `status` can also be `insufficient_evidence`, with
+no value and no required citations; the searches it made are in the transcript.
+`write_answer` checks every citation before writing: the document exists, the range
+is at most 20 lines inside one section, the quote is in those lines, and the section
+is the heading above them or one the lines name. The transcript for the same run is
 `runs/<run_id>.jsonl`.
+
+## Run limits and endings
+
+Every run ends with one stop reason, recorded in the transcript's `run_end`:
+
+| Stop reason | When |
+|---|---|
+| `answered` | a valid `answer.json` was written during the run, whatever ended the loop |
+| `no_answer` | the model ended its turn without a valid answer file |
+| `max_turns` | the turn limit was reached: exactly that many model calls were made |
+| `max_cost` | the cost limit was reached (see below) |
+| `repeated_call` | the same tool call (same tool, same input) was made a third time |
+| `refusal`, `max_tokens` | the API's stop reason of the same name |
+| `provider_error` | the API failed after retries, rejected the request, or stopped for a reason this agent doesn't handle (`pause_turn`, `stop_sequence`, `model_context_window_exceeded`) |
+
+- **Cost limit: a threshold, not a guarantee.** Before each model call the loop checks
+  the total cost so far; once it is at or over the limit, no further call is sent. A
+  run can therefore exceed the limit by up to one call: roughly the whole history as
+  input plus `max_tokens` of output.
+- **Repetition.** A call identical to an earlier one in the run is not executed: the
+  model gets an error pointing it to the earlier result, which is still in its
+  history. The third identical call ends the run. A revisit after other calls (read A,
+  read B, read A) is refused the same way, but the run goes on.
+- **Retries.** Connection errors, rate limits and 5xx are retried up to 3 times, with
+  the server's `retry-after` or 1, 2, 4 s backoff; each attempt is its own request in
+  the transcript. Other API errors end the run at once. API errors are never shown to
+  the model as tool errors.
 
 ## Evidence
 
-- Successful run (transcript and answer): *not yet produced*
-- Failed run and analysis: *not yet produced*
-- Before/after comparison on a fixed case set: *not yet produced*
+All on `claude-sonnet-5-5`, question: "What maximum Consolidated Leverage Ratio applies
+to the fiscal quarter ending on or about September 30, 2020?" (eval case
+`leverage-q3-2020`).
+
+- **Successful run:** [`runs/2026-10-12T20-21-38Z-ask-e4248a.jsonl`](runs/2026-10-12T20-21-38Z-ask-e4248a.jsonl),
+  answer [`outputs/2026-10-12T20-21-38Z-ask-e4248a/answer.json`](outputs/2026-10-12T20-21-38Z-ask-e4248a/answer.json).
+  Commit `32e79de`, clean tree; 5 turns, $0.056. It answers `not tested` and cites
+  Amendment No. 1's §7.06(a), the version in effect for that quarter. Its first
+  `write_answer` was rejected (an Amendment No. 3 citation under the wrong section);
+  the model read the error and fixed the citation on the next call.
+- **Failed run:** [`runs/2026-10-12T18-51-25Z-ask-7f6c20.jsonl`](runs/2026-10-12T18-51-25Z-ask-7f6c20.jsonl),
+  answer [`outputs/2026-10-12T18-51-25Z-ask-7f6c20/answer.json`](outputs/2026-10-12T18-51-25Z-ask-7f6c20/answer.json).
+  Commit `ef5d746` with uncommitted changes. It reached the right conclusion but
+  failed in two ways:
+  - It cited only Amendment No. 3's restated §7.06(a). That version applies from the
+    quarter ending on or about March 31, 2021 and doesn't reach back, so it doesn't
+    govern the 2020 quarter; Amendment No. 1's §7.06(a) does. The prompt had no rule
+    for which version applies to an earlier period, so the agent took the latest
+    text. **Change:** the system prompt now states the precedence rule: an amendment
+    applies from its effective date and changes an earlier period only where its text
+    expressly covers that period (`d53342d`).
+  - Its value was a sentence ("None – no maximum Consolidated Leverage Ratio applies
+    (not tested) for the quarter ending September 30, 2020"), which no deterministic
+    grader can match. **Change:** the prompt now says the value is graded on its own
+    and holds only the answer (`b4c6e87`).
+- Before/after comparison on a fixed case set: *not yet produced* (needs the graders).
 
 ## Limitations
 
@@ -81,7 +141,8 @@ Each run writes `outputs/<run_id>/answer.json`:
   not the agreement's status today.
 - Citation grading checks that cited sections and line ranges exist and match the
   expected ones. It does not check that the cited text supports the answer.
-- Cost-limit semantics: *to be documented with the agent loop*.
+- The cost limit is checked between calls, so a run can exceed it by one call (see
+  [Run limits and endings](#run-limits-and-endings)).
 - Basic text extraction: page numbers count rendered pages rather than printed
   footers, and there is no structure-aware parsing.
 - One agreement family; models limited to those with exact pricing in the recorder.
