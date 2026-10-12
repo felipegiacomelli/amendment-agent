@@ -64,12 +64,25 @@ class ToolResult:
 TOOL_SCHEMAS: list[ToolParam] = [
     {
         "name": "list_files",
-        "description": "",
+        "description": (
+            "List the documents available to search: the credit agreement, its "
+            "amendments, and _index.md, which gives each document's title, its "
+            "'dated as of' date (this sets the documents' order, not the filing "
+            "date), what it amends, and its line count. Paths are relative to the "
+            "document folder, one per line. Use it at the start to see what exists; "
+            "read _index.md with read_file before deciding which version applies."
+        ),
         "strict": True,
         "input_schema": {
             "type": "object",
             "properties": {
-                "path": {"type": "string", "description": ""},
+                "path": {
+                    "type": "string",
+                    "description": (
+                        "Subfolder to list, relative to the document folder. Empty "
+                        "lists everything."
+                    ),
+                },
             },
             "required": [],
             "additionalProperties": False,
@@ -77,13 +90,36 @@ TOOL_SCHEMAS: list[ToolParam] = [
     },
     {
         "name": "grep",
-        "description": "",
+        "description": (
+            "Search the documents for a Python regular expression, matched "
+            "case-insensitively against each line. Every line is a whole block of "
+            "the filing (a paragraph, a definition, a table row), so a hit locates "
+            "a provision. Returns one hit per line as 'file:line: text', with line "
+            "numbers 1-based and identical to read_file's; text over 400 characters "
+            "is cut with '...'. Stops after 100 hits and says so: narrow the pattern "
+            "or the path then. Returns '(no matches)' when nothing matches. Use it "
+            "to find where a term, defined word or section number appears, then "
+            "read_file around the hit to see the full provision."
+        ),
         "strict": True,
         "input_schema": {
             "type": "object",
             "properties": {
-                "pattern": {"type": "string", "description": ""},
-                "path": {"type": "string", "description": ""},
+                "pattern": {
+                    "type": "string",
+                    "description": (
+                        "Python regex, case-insensitive. Escape literal dots and "
+                        "parentheses, e.g. 'Section 7\\.11' or 'Leverage Ratio'."
+                    ),
+                },
+                "path": {
+                    "type": "string",
+                    "description": (
+                        "A file (e.g. 'amendment-3.txt') or folder to search, "
+                        "relative to the document folder. Empty searches every "
+                        "document."
+                    ),
+                },
             },
             "required": ["pattern"],
             "additionalProperties": False,
@@ -91,14 +127,37 @@ TOOL_SCHEMAS: list[ToolParam] = [
     },
     {
         "name": "read_file",
-        "description": "",
+        "description": (
+            "Read a range of lines from one document. Returns a header "
+            "'<path> lines <start>-<end> of <total>', then each line prefixed with "
+            "its 1-based number; those numbers are what citations use. Returns at "
+            "most 200 lines per call and says when it capped the range; read the "
+            "rest with another call. Lines '[Page N]' mark page breaks in the "
+            "filing, and table cells are joined by ' | '. A range starting before "
+            "line 1 or past the end of the file is an error that states the file's "
+            "line count."
+        ),
         "strict": True,
         "input_schema": {
             "type": "object",
             "properties": {
-                "path": {"type": "string", "description": ""},
-                "start_line": {"type": "integer", "description": ""},
-                "end_line": {"type": "integer", "description": ""},
+                "path": {
+                    "type": "string",
+                    "description": (
+                        "File to read, as list_files shows it, e.g. 'original.txt'."
+                    ),
+                },
+                "start_line": {
+                    "type": "integer",
+                    "description": "First line to return, 1-based.",
+                },
+                "end_line": {
+                    "type": "integer",
+                    "description": (
+                        "Last line to return, inclusive. A value past the end of "
+                        "the file stops at the last line."
+                    ),
+                },
             },
             "required": ["path", "start_line", "end_line"],
             "additionalProperties": False,
@@ -109,7 +168,18 @@ TOOL_SCHEMAS: list[ToolParam] = [
         # status needs a value and a citation, lines has two items) are checked by
         # Answer in write_answer and come back as error results.
         "name": "write_answer",
-        "description": "",
+        "description": (
+            "Record the final answer to the question; this is how the run delivers "
+            "it, so finish every run with this call. Use status 'answered' with a "
+            "value and at least one citation when the documents settle the "
+            "question, or 'insufficient_evidence' with no value when they don't. "
+            "Each citation is checked against the documents before anything is "
+            "written: the document must exist, the lines must be at most 20 and "
+            "inside one section, the quote must appear in those lines, and the "
+            "section must be the heading those lines sit under. If any check fails "
+            "the answer is not written and the error says which citation is wrong; "
+            "fix it and call again. A later call replaces an earlier answer."
+        ),
         "strict": True,
         "input_schema": {
             "type": "object",
@@ -117,24 +187,79 @@ TOOL_SCHEMAS: list[ToolParam] = [
                 "status": {
                     "type": "string",
                     "enum": [s.value for s in AnswerStatus],
-                    "description": "",
+                    "description": (
+                        "'answered' if the documents give the answer for the "
+                        "period asked about; 'insufficient_evidence' if they "
+                        "don't, rather than a guess."
+                    ),
                 },
-                "value": {"type": "string", "description": ""},
-                "explanation": {"type": "string", "description": ""},
+                "value": {
+                    "type": "string",
+                    "description": (
+                        "Required when answered, omitted otherwise. The short "
+                        "answer itself, as the documents state it, e.g. '3.75:1', "
+                        "'$500,000,000' or '2024-09-20'; no explanation here."
+                    ),
+                },
+                "explanation": {
+                    "type": "string",
+                    "description": (
+                        "A few sentences on why this is the provision in force for "
+                        "the period asked about: which document and amendment "
+                        "apply, and why later or earlier ones don't. For "
+                        "insufficient_evidence, what was searched and what is "
+                        "missing."
+                    ),
+                },
                 "citations": {
                     "type": "array",
-                    "description": "",
+                    "description": (
+                        "The evidence for the value: the provision in force, plus "
+                        "any amendment that put it in force. Empty for "
+                        "insufficient_evidence."
+                    ),
                     "items": {
                         "type": "object",
                         "properties": {
-                            "document": {"type": "string", "description": ""},
-                            "section": {"type": "string", "description": ""},
+                            "document": {
+                                "type": "string",
+                                "description": (
+                                    "Document id: the file name without .txt, "
+                                    "e.g. 'original' or 'amendment-1'."
+                                ),
+                            },
+                            "section": {
+                                "type": "string",
+                                "description": (
+                                    "The credit agreement section the citation is "
+                                    "about, e.g. '7.06(a)'. In the agreement "
+                                    "itself, the heading the cited lines sit "
+                                    "under. In an amendment, the section the "
+                                    "cited lines amend, which those lines must "
+                                    'name ("Section 7.06(a) of the Credit '
+                                    'Agreement is hereby amended..."); for '
+                                    "amendment text that changes no section, the "
+                                    "amendment's own heading number, e.g. '2'."
+                                ),
+                            },
                             "lines": {
                                 "type": "array",
                                 "items": {"type": "integer"},
-                                "description": "",
+                                "description": (
+                                    "[start, end]: 1-based inclusive line range "
+                                    "from read_file, at most 20 lines, all in the "
+                                    "same section."
+                                ),
                             },
-                            "quote": {"type": "string", "description": ""},
+                            "quote": {
+                                "type": "string",
+                                "description": (
+                                    "Text copied exactly from the cited lines, at "
+                                    "least 20 characters: the words that state the "
+                                    "value or make the change. Straight or curly "
+                                    "quotes and spacing may differ; nothing else."
+                                ),
+                            },
                         },
                         "required": ["document", "section", "lines", "quote"],
                         "additionalProperties": False,
@@ -247,9 +372,10 @@ def citation_problem(citation: Citation, text_dir: Path) -> str | None:
 
     Checks that the document exists, the range is inside it, at most
     MAX_CITATION_LINES long and within one section, the quote appears in those lines,
-    and the section matches that section's heading (by number: a "(a)" subsection
-    isn't checked). Lines are split as read_file splits them. Does not check that the
-    lines support the answer.
+    and the section is either the heading the lines sit under or a section the lines
+    name ("Section 7.06(a) ... is amended", in an amendment). Sections compare by
+    number: a "(a)" subsection isn't checked. Lines are split as read_file splits
+    them. Does not check that the lines support the answer.
     """
     # TODO: two more deterministic checks. (1) The agent read the cited lines this
     # run: read_file records what it returned in a per-run read log that run_agent
@@ -278,8 +404,15 @@ def citation_problem(citation: Citation, text_dir: Path) -> str | None:
     actual = section_at(lines, start)
     if actual is None:
         return f"{name} line {start} is not under a numbered section heading"
-    if cited is None or cited.group() != actual:
-        return f"{name} line {start} is in section {actual}, not {citation.section!r}"
+    if cited is None:
+        return f"section {citation.section!r} has no section number, e.g. 7.11"
+    # "Section 7.06" but not "Section 7.061" or, for "7", "Section 7.06".
+    named = re.compile(rf"\bSections? {re.escape(cited.group())}(?![.\d]\d)")
+    if cited.group() != actual and not named.search(" ".join(lines[start - 1 : end])):
+        return (
+            f"{name} line {start} is in section {actual}, and lines {start}-{end} "
+            f"don't mention Section {cited.group()}"
+        )
     if (last := section_at(lines, end)) != actual:
         return (
             f"{name} lines {start}-{end} run from section {actual} into {last}; "

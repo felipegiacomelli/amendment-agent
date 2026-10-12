@@ -168,6 +168,13 @@ def test_write_answer_writes_a_valid_answer_file(corpus: Path, tmp_path: Path) -
             "lines": [3, 3],
             "quote": "amended to read 4.50 to 1.00",
         },
+        # ...and amendment text can be cited by the section it names
+        {
+            "document": "amendment-1",
+            "section": "Section 7.11(a)",
+            "lines": [3, 3],
+            "quote": "amended to read 4.50 to 1.00",
+        },
     ],
 )
 def test_citation_problem_accepts(corpus: Path, citation: dict[str, object]) -> None:
@@ -191,8 +198,26 @@ def test_citation_problem_accepts(corpus: Path, citation: dict[str, object]) -> 
             "not found",
         ),
         ({**CITATION, "section": "7.10"}, "in section 7.11"),
+        (
+            {
+                "document": "amendment-1",
+                "section": "7.10",
+                "lines": [3, 3],
+                "quote": "amended to read 4.50 to 1.00",
+            },
+            "don't mention Section 7.10",
+        ),
+        (  # "7" must not match the "Section 7.11" the lines name
+            {
+                "document": "amendment-1",
+                "section": "7",
+                "lines": [3, 3],
+                "quote": "amended to read 4.50 to 1.00",
+            },
+            "don't mention Section 7",
+        ),
         ({**CITATION, "lines": [3, 5], "section": "7.10"}, "into 7.11"),
-        ({**CITATION, "section": "Burdensome Agreements"}, "in section 7.11"),
+        ({**CITATION, "section": "Burdensome Agreements"}, "no section number"),
         (
             {**CITATION, "lines": [1, 2], "quote": "Burdensome Agreements | 101"},
             "not under",
