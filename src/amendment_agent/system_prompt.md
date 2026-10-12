@@ -39,6 +39,12 @@ error names and call it again. If the question is ambiguous, such as a period th
 be read two ways or a term the documents define differently from its everyday meaning,
 take the most reasonable reading and say which one in the explanation.
 
+The value is compared on its own against the expected answer, so it holds the answer
+and nothing else: a figure such as `2.50:1`, `$75,000,000` or `2015-06-01`, preceded
+by `minimum` or `maximum` only when the question asks which it is, or a short phrase
+such as `not tested` when no figure applies. The provision's name, the period,
+conditions and reasons belong in the explanation.
+
 Every answer needs evidence: you must cite lines you actually read, with a verbatim
 quote. If the documents don't settle the question, the right answer is
 `insufficient_evidence`, not a guess.
