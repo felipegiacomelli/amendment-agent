@@ -23,7 +23,7 @@ COMPARABILITY = (
     "the git commit identifies the agent version. Report the model and corpus with "
     "any comparison. Otherwise rerun the older version on the current case set."
 )
-GRADING_FILES = ("graders.py", "schema.py", "evals.py")
+GRADING_FILES = ("graders.py", "citations.py", "schema.py", "evals.py")
 
 
 def grading_fingerprint() -> str:

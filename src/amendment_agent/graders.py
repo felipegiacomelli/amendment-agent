@@ -9,8 +9,8 @@ from pathlib import Path
 
 import attrs
 
+from amendment_agent.citations import citation_problem
 from amendment_agent.schema import Answer, AnswerStatus, Citation, EvalCase
-from amendment_agent.tools import citation_problem
 
 # "3.75:1", "3.75 to 1.00", "3.75x": a number, then ":" or "to" and a number, or "x".
 _RATIO = re.compile(r"(\d+(?:\.\d+)?)\s*(?:(?::|\bto\b)\s*(\d+(?:\.\d+)?)|x\b)")

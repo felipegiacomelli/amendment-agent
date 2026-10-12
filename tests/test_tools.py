@@ -3,10 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from amendment_agent import tools
+from amendment_agent import citations, tools
+from amendment_agent.citations import citation_problem
 from amendment_agent.schema import ANSWER_FILENAME, Citation, load_answer
 from amendment_agent.tools import (
-    citation_problem,
     execute_tool,
     grep,
     list_files,
@@ -234,7 +234,7 @@ def test_citation_problem_rejects(
 def test_citation_problem_caps_range_width(
     corpus: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(tools, "MAX_CITATION_LINES", 1)
+    monkeypatch.setattr(citations, "MAX_CITATION_LINES", 1)
     found = citation_problem(Citation.model_validate(CITATION), corpus)
     assert found is not None and "cite at most 1" in found
 
