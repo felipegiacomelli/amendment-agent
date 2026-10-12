@@ -17,7 +17,7 @@ from anthropic.types import Message, MessageParam, ToolResultBlockParam
 from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
 
 from amendment_agent.recorder import RunRecorder
-from amendment_agent.schema import ANSWER_FILENAME
+from amendment_agent.schema import ANSWER_FILENAME, load_answer
 from amendment_agent.tools import TOOL_SCHEMAS, ToolResult, execute_tool
 
 MAX_RETRIES = 3
@@ -169,9 +169,11 @@ def run_agent(
         stop_reason = StopReason.MAX_COST
 
     # A valid answer.json overrides whatever ended the loop
-    answer_file = output_dir / ANSWER_FILENAME
-    if answer_file.exists():
+    try:
+        load_answer(output_dir / ANSWER_FILENAME)
         stop_reason = StopReason.ANSWERED
+    except ValueError:
+        pass
 
     recorder.end(stop_reason, messages)
 
