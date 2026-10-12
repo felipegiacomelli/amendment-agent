@@ -109,7 +109,7 @@ TOOL_SCHEMAS: list[ToolParam] = [
                     "type": "string",
                     "description": (
                         "Python regex, case-insensitive. Escape literal dots and "
-                        "parentheses, e.g. 'Section 7\\.11' or 'Leverage Ratio'."
+                        "parentheses, e.g. 'Section 6\\.12' or 'Fixed Charge'."
                     ),
                 },
                 "path": {
@@ -197,8 +197,8 @@ TOOL_SCHEMAS: list[ToolParam] = [
                     "type": "string",
                     "description": (
                         "Required when answered, omitted otherwise. The short "
-                        "answer itself, as the documents state it, e.g. '3.75:1', "
-                        "'$500,000,000' or '2024-09-20'; no explanation here."
+                        "answer itself, as the documents state it, e.g. '2.50:1', "
+                        "'$75,000,000' or '2015-06-01'; no explanation here."
                     ),
                 },
                 "explanation": {
@@ -232,11 +232,11 @@ TOOL_SCHEMAS: list[ToolParam] = [
                                 "type": "string",
                                 "description": (
                                     "The credit agreement section the citation is "
-                                    "about, e.g. '7.06(a)'. In the agreement "
+                                    "about, e.g. '6.12(b)'. In the agreement "
                                     "itself, the heading the cited lines sit "
                                     "under. In an amendment, the section the "
                                     "cited lines amend, which those lines must "
-                                    'name ("Section 7.06(a) of the Credit '
+                                    'name ("Section 6.12(b) of the Credit '
                                     'Agreement is hereby amended..."); for '
                                     "amendment text that changes no section, the "
                                     "amendment's own heading number, e.g. '2'."
@@ -405,7 +405,7 @@ def citation_problem(citation: Citation, text_dir: Path) -> str | None:
     if actual is None:
         return f"{name} line {start} is not under a numbered section heading"
     if cited is None:
-        return f"section {citation.section!r} has no section number, e.g. 7.11"
+        return f"section {citation.section!r} has no section number, e.g. 6.12"
     # "Section 7.06" but not "Section 7.061" or, for "7", "Section 7.06".
     named = re.compile(rf"\bSections? {re.escape(cited.group())}(?![.\d]\d)")
     if cited.group() != actual and not named.search(" ".join(lines[start - 1 : end])):
