@@ -1,7 +1,9 @@
-"""Append-only JSONL transcript of one agent run: requests, responses, tools, cost.
+"""Append-only transcript of one agent run: requests, responses, tools, cost.
 
 The agent loop calls this explicitly. Every event is flushed as it happens, so a
-crashed or hung run still leaves its transcript up to that point.
+crashed or hung run still leaves its transcript up to that point. Events are indented
+JSON objects one after another, for people to read; `read_events` (or `jq`) parses
+them. The file keeps its `.jsonl` name, but an event spans several lines.
 """
 
 import datetime as dt
@@ -18,7 +20,7 @@ import attrs
 from anthropic.types import Message, MessageParam, Usage
 from pydantic import BaseModel
 
-from amendment_agent.settings import TEXT_DIR
+from amendment_agent.settings import OUTPUT_DIR, RESULTS_DIR, RUNS_DIR, TEXT_DIR
 
 
 @attrs.frozen
@@ -98,7 +100,18 @@ def git_revision() -> dict[str, object]:
         ).stdout
     except (OSError, subprocess.CalledProcessError):
         return {"commit": None, "dirty": None}
-    return {"commit": commit, "dirty": bool(status.strip())}
+    return {"commit": commit, "dirty": is_dirty(status)}
+
+
+# What runs and evals write themselves; it isn't a code change.
+RUN_OUTPUTS = tuple(f"{d.as_posix()}/" for d in (RUNS_DIR, OUTPUT_DIR, RESULTS_DIR))
+
+
+def is_dirty(porcelain: str) -> bool:
+    """True if `git status --porcelain` shows a change outside the run outputs."""
+    return any(
+        not line[3:].startswith(RUN_OUTPUTS) for line in porcelain.splitlines() if line
+    )
 
 
 def fingerprint(directory: Path) -> dict[str, str]:
@@ -123,12 +136,27 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
+def read_events(path: Path) -> list[dict[str, Any]]:
+    """Parse a run file: JSON objects written one after another."""
+    text = path.read_text(encoding="utf-8")
+    decoder = json.JSONDecoder()
+    events: list[dict[str, Any]] = []
+    position = 0
+    while True:
+        while position < len(text) and text[position].isspace():
+            position += 1
+        if position == len(text):
+            return events
+        event, position = decoder.raw_decode(text, position)
+        events.append(event)
+
+
 def _now() -> str:
     return dt.datetime.now(dt.UTC).isoformat(timespec="milliseconds")
 
 
 class RunRecorder:
-    """Writes `runs_dir/<run_id>.jsonl`, one JSON event per line."""
+    """Writes `runs_dir/<run_id>.jsonl`, one indented JSON event after another."""
 
     def __init__(
         self,
@@ -241,8 +269,13 @@ class RunRecorder:
         }
 
     def _write(self, event: str, **data: Any) -> None:
-        line = json.dumps({"ts": _now(), "event": event, **data}, default=str)
-        self._file.write(line + "\n")
+        text = json.dumps(
+            {"ts": _now(), "event": event, **data},
+            default=str,
+            indent=4,
+            ensure_ascii=False,
+        )
+        self._file.write(text + "\n")
         self._file.flush()
 
     def __enter__(self) -> Self:

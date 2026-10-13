@@ -11,7 +11,7 @@ from amendment_agent import evals
 from amendment_agent.agent import StopReason
 from amendment_agent.evals import CaseResult, format_table, run_eval
 from amendment_agent.graders import Grade
-from amendment_agent.recorder import RunRecorder
+from amendment_agent.recorder import RunRecorder, read_events
 from amendment_agent.schema import EvalCase
 
 type FakeAgent = Callable[..., StopReason]
@@ -35,7 +35,14 @@ GOOD = json.dumps(
         "status": "answered",
         "value": "3.75:1",
         "explanation": "x",
-        "citations": [{"document": "original", "section": "7.06(a)", "lines": [1, 2]}],
+        "citations": [
+            {
+                "document": "original",
+                "section": "7.06(a)",
+                "lines": [1, 2],
+                "quote": "shall not exceed 3.75 to 1.00",
+            }
+        ],
     }
 )
 
@@ -104,11 +111,7 @@ def test_passing_case_links_transcript_output_and_results(
     assert payload["cases_sha256"] == cases_sha and payload["model"] == MODEL
     assert payload["results"][0]["run_id"] == result.run_id
     assert set(payload["git"]) == {"commit", "dirty"}
-    run_start = json.loads(
-        (tmp_path / "runs" / f"{result.run_id}.jsonl")
-        .read_text(encoding="utf-8")
-        .splitlines()[0]
-    )
+    run_start = read_events(tmp_path / "runs" / f"{result.run_id}.jsonl")[0]
     assert run_start["config"]["cases_sha256"] == cases_sha
     assert run_start["config"]["eval_id"] == payload["eval_id"]
     assert payload["grading_sha256"] == evals.grading_fingerprint()
@@ -211,3 +214,30 @@ def test_table_shows_marks_totals_reasons_and_incomplete_cost() -> None:
     assert "case-1" in table and "superseded" in table and "✓" in table and "✗" in table
     assert "answer 1/1" in table and "citations 0/1" in table
     assert "wrong section" in table and "0.0200?" in table
+
+
+def test_table_flags_a_pass_with_a_warning() -> None:
+    ok, flagged = Grade(True, "ok"), Grade(True, "ok", "extra: amendment-3 §1 [21-22]")
+    table = format_table(
+        [
+            CaseResult(
+                "case-1", "superseded", ok, flagged, "answered", 3, 0.02, True, "r"
+            )
+        ]
+    )
+    assert "✓*" in table and "citations 1/1" in table
+    assert "case-1 citations (passed*): extra: amendment-3 §1 [21-22]" in table
+
+
+def test_the_agent_gets_the_corpus_that_is_fingerprinted_and_graded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: list[object] = []
+    write = agent_writing(GOOD)
+
+    def agent(question: str, **kwargs: Any) -> StopReason:
+        seen.append(kwargs["text_dir"])
+        return write(question, **kwargs)
+
+    run(tmp_path, monkeypatch, agent)
+    assert seen == [tmp_path / "text"]

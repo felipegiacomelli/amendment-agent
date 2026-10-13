@@ -15,8 +15,11 @@ hand-written tool loop. No agent frameworks.
 
 These are written by the maintainer, by hand, as the point of the project:
 
-- `src/amendment_agent/agent.py`: `run_agent`, `SYSTEM_PROMPT`, `StopReason`
+- `src/amendment_agent/agent.py`: `run_agent`, `StopReason`
+- `src/amendment_agent/system_prompt.md`: the agent's system prompt
 - `src/amendment_agent/tools.py`: the four tools, `execute_tool`, `TOOL_SCHEMAS`
+- `src/amendment_agent/citations.py`: `citation_problem`, `section_at` (part of the
+  grading fingerprint)
 - `src/amendment_agent/graders.py`: `grade_answer`, `grade_citations`
 - their tests, and `evals/cases.jsonl` beyond the first example
 

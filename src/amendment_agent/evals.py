@@ -23,7 +23,7 @@ COMPARABILITY = (
     "the git commit identifies the agent version. Report the model and corpus with "
     "any comparison. Otherwise rerun the older version on the current case set."
 )
-GRADING_FILES = ("graders.py", "schema.py", "evals.py")
+GRADING_FILES = ("graders.py", "citations.py", "schema.py", "evals.py")
 
 
 def grading_fingerprint() -> str:
@@ -98,6 +98,7 @@ def run_case(
                 model=model,
                 recorder=recorder,
                 output_dir=output_dir,
+                text_dir=text_dir,
                 max_turns=max_turns,
                 max_cost_usd=max_cost_usd,
             )
@@ -122,7 +123,9 @@ def run_case(
 
 def format_table(results: list[CaseResult]) -> str:
     def mark(grade: Grade) -> str:
-        return "✓" if grade.passed else "✗"
+        if not grade.passed:
+            return "✗"
+        return "✓*" if grade.warning else "✓"
 
     lines = [
         f"{'case':<26} {'category':<16} {'answer':<6} {'cite':<5} {'stop':<15} {'turns':>5} {'cost $':>9}"
@@ -149,6 +152,8 @@ def format_table(results: list[CaseResult]) -> str:
         for kind, grade in (("answer", r.answer), ("citations", r.citations)):
             if not grade.passed:
                 lines.append(f"  {r.case_id} {kind}: {grade.reason}")
+            elif grade.warning:
+                lines.append(f"  {r.case_id} {kind} (passed*): {grade.warning}")
     return "\n".join(lines)
 
 

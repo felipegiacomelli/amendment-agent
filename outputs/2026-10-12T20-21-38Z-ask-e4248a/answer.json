@@ -1,0 +1,25 @@
+{
+  "status": "answered",
+  "value": "not tested",
+  "explanation": "Amendment No. 1 restated Section 7.06(a) to test the maximum Consolidated Leverage Ratio (3.75:1) only for the quarter ending about March 31, 2020 and for quarters ending on or after about June 30, 2021. The quarter ending about September 30, 2020 is in neither period, so no maximum applies. Amendment No. 3 (Feb 2021) restated 7.06(a) to test only quarters ending on or after about March 31, 2021 (or June 30, 2021 if the Covenant Compliance Restoration Date has not occurred before March 31, 2021). Q3 2020 is outside that period too. Amendment 2 does not touch Section 7.06.",
+  "citations": [
+    {
+      "document": "amendment-1",
+      "section": "7.06(a)",
+      "lines": [
+        1363,
+        1363
+      ],
+      "quote": "(i) as of the end of the fiscal quarter of the Company ending on or about March 31, 2020 to be greater than 3.75:1, and (ii) as of the end of any fiscal quarter of the Company ending on or after the fiscal quarter ending on or about June 30, 2021"
+    },
+    {
+      "document": "amendment-3",
+      "section": "1",
+      "lines": [
+        21,
+        22
+      ],
+      "quote": "Permit the Consolidated Leverage Ratio as of the end of any fiscal quarter of the Company ending on or after the fiscal quarter ending on or about March 31, 2021"
+    }
+  ]
+}

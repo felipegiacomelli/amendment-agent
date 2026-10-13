@@ -7,6 +7,7 @@ from amendment_agent.extract import (
     extract_all,
     extract_file,
     html_to_lines,
+    restore_heading_numbers,
     text_to_lines,
 )
 from amendment_agent.manifest import Manifest
@@ -128,3 +129,29 @@ def test_unclosed_tr_and_td_rows() -> None:
 def test_unclosed_head_ends_at_body() -> None:
     html = "<html><head><title>T</title><body><p>Body text</p></body></html>"
     assert html_to_lines(html) == ["[Page 1]", "Body text"]
+
+
+def test_a_heading_missing_its_number_gets_it_from_the_contents() -> None:
+    lines = [
+        "[Page 1]",
+        "1.01 | Defined Terms 1",
+        "1.02 | Other Interpretive Provisions | 37",
+        ".Defined Terms",
+        ". As used in this Agreement, the following terms shall have the meanings",
+        ".Other Interpretive Provisions",
+        ".Rounding",
+    ]
+    assert restore_heading_numbers(lines) == [
+        "[Page 1]",
+        "1.01 | Defined Terms 1",
+        "1.02 | Other Interpretive Provisions | 37",
+        "1.01 Defined Terms",
+        ". As used in this Agreement, the following terms shall have the meanings",
+        "1.02 Other Interpretive Provisions",
+        ".Rounding",  # not in the contents: left alone
+    ]
+
+
+def test_a_title_listed_twice_in_the_contents_is_left_alone() -> None:
+    lines = ["1.01 | Notices 1", "9.02 | Notices 90", ".Notices"]
+    assert restore_heading_numbers(lines)[-1] == ".Notices"

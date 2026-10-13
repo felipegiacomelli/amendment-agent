@@ -14,7 +14,12 @@ from amendment_agent.schema import (
 )
 from amendment_agent.settings import CASES_PATH
 
-CITATION = {"document": "amendment-1", "section": "7.06(a)", "lines": [10, 12]}
+CITATION = {
+    "document": "amendment-1",
+    "section": "7.06(a)",
+    "lines": [10, 12],
+    "quote": "shall not exceed 3.75 to 1.00",
+}
 ANSWER: dict[str, Any] = {
     "status": "answered",
     "value": "not tested",
@@ -57,6 +62,14 @@ def test_valid_answer_loads(tmp_path: Path) -> None:
 def test_invalid_answers_are_rejected(change: dict[str, Any]) -> None:
     with pytest.raises(ValidationError):
         Answer.model_validate(ANSWER | change)
+
+
+@pytest.mark.parametrize("value", ["3.75:1", ""])
+def test_insufficient_evidence_with_a_value_is_rejected(value: str) -> None:
+    with pytest.raises(ValidationError, match="takes no value"):
+        Answer.model_validate(
+            {"status": "insufficient_evidence", "value": value, "explanation": "e"}
+        )
 
 
 def test_insufficient_evidence_needs_no_value() -> None:
@@ -117,3 +130,14 @@ def test_unreadable_answer_file_is_a_value_error(
     monkeypatch.setattr(Path, "read_text", denied)
     with pytest.raises(ValueError, match="unreadable answer file"):
         load_answer(path)
+
+
+def test_an_answer_file_that_cant_even_be_checked_is_a_value_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def denied(self: Path) -> bool:
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(Path, "is_file", denied)
+    with pytest.raises(ValueError, match="unreadable answer file"):
+        load_answer(tmp_path / "answer.json")

@@ -16,14 +16,15 @@ class AnswerStatus(StrEnum):
 
 
 class Citation(BaseModel):
-    """Evidence location: a document id, a section, and an inclusive 1-based line range
-    in data/text/<document>.txt."""
+    """Evidence location: a document id, a section, an inclusive 1-based line range
+    in data/text/<document>.txt, and a verbatim quote from those lines."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     document: str
-    section: str
+    section: str  # the numbered heading in `document` containing the lines
     lines: tuple[int, int]
+    quote: str
 
     @model_validator(mode="after")
     def check_lines(self) -> Self:
@@ -53,16 +54,19 @@ class Answer(BaseModel):
                 raise ValueError("an answered status needs a non-empty value")
             if not self.citations:
                 raise ValueError("an answered status needs at least one citation")
+        elif self.value is not None:
+            # A guessed value would otherwise get full credit on an unanswerable case.
+            raise ValueError("an insufficient_evidence status takes no value")
         return self
 
 
 def load_answer(path: Path) -> Answer:
     """Parse an answer file. Raise ValueError saying what is wrong (fail closed)."""
-    if not path.is_file():
-        raise ValueError(f"no answer file at {path}")
     try:
+        if not path.is_file():
+            raise ValueError(f"no answer file at {path}")
         return Answer.model_validate_json(path.read_text(encoding="utf-8"))
-    except OSError as error:
+    except OSError as error:  # is_file() too can raise, e.g. PermissionError
         raise ValueError(f"unreadable answer file {path}: {error}") from error
     except ValidationError as error:
         raise ValueError(f"invalid answer file {path}: {error}") from error

@@ -62,4 +62,4 @@ branch = true
 exclude_also = ["raise NotImplementedError"]
 show_missing = true
 # Ratchet: measured at scaffold time; only ever raise it.
-fail_under = 81
+fail_under = 89
