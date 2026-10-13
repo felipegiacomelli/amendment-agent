@@ -284,6 +284,30 @@ def test_answered_needs_a_valid_answer_file_written_this_run(
     assert stop is StopReason.ANSWERED
 
 
+def test_an_answer_file_from_an_earlier_run_is_not_answered(
+    tmp_path: Path, tools: FakeTools
+) -> None:
+    (tmp_path / "out").mkdir()
+    (tmp_path / "out" / ANSWER_FILENAME).write_text(json.dumps(ANSWER), "utf-8")
+
+    stop, _ = run(tmp_path, FakeClient(ends()))
+
+    assert stop is StopReason.NO_ANSWER
+
+
+def test_a_rejected_write_answer_is_not_answered(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rejected = ToolResult(text="error: quote not found", is_error=True)
+    tools = FakeTools({"write_answer": rejected}, answer=json.dumps(ANSWER))
+    monkeypatch.setattr(agent, "execute_tool", tools)
+    client = FakeClient(calls_tool("t1", "write_answer"), ends())
+
+    stop, _ = run(tmp_path, client)
+
+    assert stop is StopReason.NO_ANSWER
+
+
 def test_an_invalid_answer_file_is_not_answered(
     tmp_path: Path, tools: FakeTools
 ) -> None:

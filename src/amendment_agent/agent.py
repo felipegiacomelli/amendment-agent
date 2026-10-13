@@ -88,6 +88,7 @@ def run_agent(
     turn = 0
     cost = 0.0
     seen: Counter[tuple[str, str]] = Counter()
+    wrote_answer = False  # a file left in output_dir by an earlier run doesn't count
 
     while turn < max_turns and cost < max_cost_usd:
         params["messages"] = messages
@@ -126,6 +127,8 @@ def run_agent(
                     result = execute_tool(
                         block.name, block.input, output_dir=output_dir
                     )
+                    if block.name == "write_answer" and not result.is_error:
+                        wrote_answer = True
 
                 recorder.tool_call(
                     turn=turn,
@@ -170,12 +173,13 @@ def run_agent(
         else:
             stop_reason = StopReason.MAX_TURNS
 
-    # A valid answer.json overrides whatever ended the loop
-    try:
-        load_answer(output_dir / ANSWER_FILENAME)
-        stop_reason = StopReason.ANSWERED
-    except ValueError:
-        pass
+    # A valid answer.json written in this run overrides whatever ended the loop
+    if wrote_answer:
+        try:
+            load_answer(output_dir / ANSWER_FILENAME)
+            stop_reason = StopReason.ANSWERED
+        except ValueError:
+            pass
 
     recorder.end(stop_reason, messages)
 
