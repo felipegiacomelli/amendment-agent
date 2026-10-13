@@ -59,11 +59,11 @@ class Answer(BaseModel):
 
 def load_answer(path: Path) -> Answer:
     """Parse an answer file. Raise ValueError saying what is wrong (fail closed)."""
-    if not path.is_file():
-        raise ValueError(f"no answer file at {path}")
     try:
+        if not path.is_file():
+            raise ValueError(f"no answer file at {path}")
         return Answer.model_validate_json(path.read_text(encoding="utf-8"))
-    except OSError as error:
+    except OSError as error:  # is_file() too can raise, e.g. PermissionError
         raise ValueError(f"unreadable answer file {path}: {error}") from error
     except ValidationError as error:
         raise ValueError(f"invalid answer file {path}: {error}") from error

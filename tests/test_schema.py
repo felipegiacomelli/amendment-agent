@@ -122,3 +122,14 @@ def test_unreadable_answer_file_is_a_value_error(
     monkeypatch.setattr(Path, "read_text", denied)
     with pytest.raises(ValueError, match="unreadable answer file"):
         load_answer(path)
+
+
+def test_an_answer_file_that_cant_even_be_checked_is_a_value_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def denied(self: Path) -> bool:
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(Path, "is_file", denied)
+    with pytest.raises(ValueError, match="unreadable answer file"):
+        load_answer(tmp_path / "answer.json")
