@@ -1,18 +1,14 @@
 # amendment-agent
 
-An autonomous agent that answers questions about one credit agreement family: Envista
-Holdings' 2019 credit agreement and its three amendments, from SEC EDGAR. For each
-question it finds the provision that applies to the period asked about, within this
-document set, and cites the document, section and line range.
+An AI agent that answers questions about one credit agreement and its amendments
+(Envista Holdings, 2019, from SEC EDGAR). For each question, it finds the version of
+the rule that applied to the period asked about and cites the exact lines it used.
 
 ## How it works
 
-The agent is designed to decide its own steps, the way a coding agent works through a repository.
-It lists the documents, greps for terms, reads line ranges and writes an answer file.
-It has four tools (`list_files`, `grep`, `read_file`, `write_answer`) over a folder of
-plain-text filings, and no search index. Reads are confined to the filings and writes
-to the run's own output folder. A run is meant to end when the answer is written, or at a turn,
-cost or repetition limit.
+The agent decides its own steps. It has four tools over a folder of plain-text
+filings: list the files, search them, read lines, and write the answer. It can only
+read the filings and only write to its own output folder.
 
 | id | Document | Dated |
 |---|---|---|
@@ -21,19 +17,9 @@ cost or repetition limit.
 | `amendment-2` | Amendment No. 2: §7.03(l) | 2020-05-19 |
 | `amendment-3` | Amendment No. 3: "Applicable Rate"; restates §7.06(a)–(b) | 2021-02-09 |
 
-Later amendments override earlier text, so the right answer is often not in the
-original agreement. Document dates set the order; the question's period picks the
-version; conditions in the text can still change what applies.
-
-## Status
-
-| Part | State |
-|---|---|
-| EDGAR fetcher (rate-limited), text extraction, document index | implemented, tested offline |
-| Run recorder: JSONL transcript with config, git revision, corpus hashes, every request, response, tool call, usage and cost | implemented, tested offline |
-| Answer and eval-case schema; eval runner with fail-closed grading and comparable results files | implemented, tested offline |
-| Agent loop and tools | hand-written, tested offline with a scripted fake client |
-| Graders | deterministic, fail closed, tested offline |
+The hard part is picking the right version. A later amendment usually replaces earlier
+text, but only from its effective date, unless it says it reaches back. So the
+latest document isn't always the answer.
 
 ## Quickstart
 
@@ -48,12 +34,12 @@ uv run amendment-agent ask "What maximum Consolidated Leverage Ratio applies to 
 uv run amendment-agent eval
 ```
 
-The default model is `claude-sonnet-5-5`. `claude-opus-5-5` is also supported, via
-`AGENT_MODEL` or `--model`.
+The default model is `claude-sonnet-5-5`; use `--model claude-opus-5-5` for Opus.
 
-## Answer format
+## The answer
 
-Each run writes `outputs/<run_id>/answer.json`:
+Each run writes `outputs/<run_id>/answer.json` and a full transcript in
+`runs/<run_id>.jsonl`:
 
 ```json
 {
@@ -61,183 +47,97 @@ Each run writes `outputs/<run_id>/answer.json`:
   "value": "not tested",
   "explanation": "Amendment No. 1 restated Section 7.06(a) to test the maximum Consolidated Leverage Ratio (3.75:1) only for the quarter ending about March 31, 2020 and for quarters ending on or after about June 30, 2021. [...]",
   "citations": [
-    {
-      "document": "amendment-1",
-      "section": "7.06(a)",
-      "lines": [1363, 1363],
-      "quote": "(i) as of the end of the fiscal quarter of the Company ending on or about March 31, 2020 to be greater than 3.75:1, and (ii) [...]"
-    }
+    {"document": "amendment-1", "section": "7.06(a)", "lines": [1363, 1363], "quote": "(i) as of the end of the fiscal quarter [...]"}
   ]
 }
 ```
 
-`value` is the bare answer, since it is graded on its own; everything else goes in
-`explanation`, which is not graded. `status` can also be `insufficient_evidence`, with
-no value and no required citations; the searches it made are in the transcript.
-`write_answer` checks every citation before writing: the document exists, the range
-is at most 20 lines inside one section, the quote is in those lines, and the section
-is the heading above them or one the lines name. The transcript for the same run is
-`runs/<run_id>.jsonl`.
+If the documents don't answer the question, the status is `insufficient_evidence`
+and there is no value. Before saving, the agent's citations are checked: the quote
+must appear in the cited lines, and the section must match.
 
-## Run limits and endings
+## When a run stops
 
-Every run ends with one stop reason, recorded in the transcript's `run_end`:
+A run stops when the answer is written, or at one of these limits:
 
-| Stop reason | When |
-|---|---|
-| `answered` | a valid `answer.json` was written during the run, whatever ended the loop |
-| `no_answer` | the model ended its turn without a valid answer file |
-| `max_turns` | the turn limit was reached: exactly that many model calls were made |
-| `max_cost` | the cost limit was reached (see below) |
-| `repeated_call` | the same tool call (same tool, same input) was made a third time |
-| `refusal`, `max_tokens` | the API's stop reason of the same name |
-| `provider_error` | the API failed after retries, rejected the request, or stopped for a reason this agent doesn't handle (`pause_turn`, `stop_sequence`, `model_context_window_exceeded`) |
+- **Turns:** a fixed number of model calls.
+- **Cost:** checked before each call, so a run can go over by up to one call.
+- **Repetition:** an identical tool call isn't run again (the model is pointed to the
+  earlier result); a third one ends the run.
+- **Errors:** temporary API errors (network, rate limits, server errors) are retried 3
+  times; other API errors end the run.
 
-- **Cost limit: a threshold, not a guarantee.** Before each model call the loop checks
-  the total cost so far; once it is at or over the limit, no further call is sent. A
-  run can therefore exceed the limit by up to one call: roughly the whole history as
-  input plus `max_tokens` of output.
-- **Repetition.** A call identical to an earlier one in the run is not executed: the
-  model gets an error pointing it to the earlier result, which is still in its
-  history. The third identical call ends the run. A revisit after other calls (read A,
-  read B, read A) is refused the same way, but the run goes on.
-- **Retries.** Connection errors, rate limits and 5xx are retried up to 3 times, with
-  the server's `retry-after` or 1, 2, 4 s backoff; each attempt is its own request in
-  the transcript. Other API errors end the run at once. API errors are never shown to
-  the model as tool errors.
+Each ending is recorded with its own reason (`answered`, `no_answer`, `max_turns`,
+`max_cost`, `repeated_call`, `refusal`, `max_tokens`, `provider_error`).
 
-## Eval results
+## Results
 
-8 cases in [`evals/cases.jsonl`](evals/cases.jsonl), each checked by hand against the
-documents. They cover a superseded provision (2), a provision amended again later (4,
-including a direction inversion that Amendment No. 2 corrects), an unchanged
-provision (1) and a question the documents can't answer (1). Each case ran 3 times
-per model, on commit `0d8dffd` with a clean tree, the same cases (`cases_sha256`
-`efd3a601…`) and grading code (`grading_sha256` `be4b618d…`):
+8 test questions, each checked by hand against the documents, in
+[`evals/cases.jsonl`](evals/cases.jsonl). Each ran 3 times per model:
 
-| Model | Answers | Citations | Extra citations | Cost per question | Turns |
-|---|---|---|---|---|---|
-| `claude-sonnet-5-5` | 24/24 | 24/24 | 3/24 | $0.029 | 4.7 |
-| `claude-opus-5-5` | 24/24 | 23/24 | 16/24 | $0.098 | 4.7 |
+| Model | Right answer | Right citations | Cost per question |
+|---|---|---|---|
+| Sonnet 5.5 (default) | 24/24 | 24/24 | $0.03 |
+| Opus 5.5 | 24/24 | 23/24 | $0.10 |
 
-On this set Opus is no more accurate than Sonnet, at about 3 times the cost, so Sonnet
-is the default. Opus's one failure: on `leverage-q3-2020` it cited the right lines of
-Amendment No. 1 (the §7.06 heading and clause (a)) but labelled them `§7.06`, broader
-than the expected `§7.06(a)`, which the citation grader fails by design. Results
-files: `evals/results/2026-10-13T01-*.json`.
+Opus was no more accurate and cost about 3 times as much. Its one miss cited the right
+lines under a broader label (`§7.06` instead of `§7.06(a)`).
 
-What the graders check, and what they don't:
+**What the scoring checks:** the answer matches the expected one (allowing for
+formats like `3.75:1` vs `3.75 to 1.00`), and the expected sections are cited.
+Extra citations are flagged, not failed. **What it doesn't check:** that the cited
+lines support the answer, or that the explanation is right. A second AI model reviewed
+the answers for that; it agreed with every score and found one badly worded test
+question, now fixed.
 
-- **Answer:** the status matches. If answered, the value matches an accepted value
-  after normalisation: lowercase, single spaces, no trailing punctuation, and ratios
-  in one form (`3.75 to 1.00`, `3.75:1` and `3.75x` are equal). The explanation is
-  not graded.
-- **Citations:** every citation passes the same check `write_answer` runs (document
-  exists, at most 20 lines in one section, verbatim quote in those lines, section is
-  the heading above them or one they name). Every expected `(document, section)` is
-  cited, either by a label that is the same or more specific (`7.06(a)` accepts
-  `7.06(a)(i)`, not `7.06` or `7.06(b)`) or by lines that name it. Extra citations,
-  usually the superseded version cited next to the one in force, don't fail the
-  grade; they show as `✓*` in the eval table.
-- **Not checked:** that the cited lines support the answer, or that the reasoning is
-  right. Those are left to a second, independent review of the answers by another
-  model.
+How the scores got here:
 
-How we got here (all results files are kept in `evals/results/`):
+- The first runs scored 4/8 (Sonnet) and 7/8 (Opus) on citations, but every miss was a problem in the scoring
+  or the data, not the agent: the scorer was too strict about section labels, and one
+  SEC filing is missing a section number. Both were fixed.
+- A code review by a second AI model found six bugs; all are fixed and tested.
+- Once, Sonnet cited only a later amendment that doesn't apply to the period. It
+  happened in 1 of 8 runs of that question.
 
-1. **First baseline** (`c8a11f0`): answers 8/8 on both models; citations 4/8
-   (Sonnet) and 7/8 (Opus). Every citation failure was in the measurement, not the
-   agent:
-   - the grader matched only a citation's label, and Sonnet labels amendment lines
-     with the amendment's own heading (`§1`), which the citation convention allows;
-   - Amendment No. 1's filing drops the number from its "Defined Terms" heading, so
-     every definition in force sat under the wrong section and the expected citation
-     for `lc-sublimit` could not be made.
-2. **Fixes:** the grader also accepts lines that name the expected section
-   (`a953a63`); extraction restores a dropped heading number from the document's
-   table of contents (`3b21073`, one line of the corpus changed).
-3. **Rerun:** citations 7/8 (Sonnet) and 8/8 (Opus). The two remaining failures:
-   - Sonnet cited only Amendment No. 3 on `leverage-q3-2020`: the precedence mistake
-     from the failed run below, and a real agent error;
-   - Opus answered `minimum 3.00 to 1.00` where the case accepted only `3.00:1`:
-     a correct answer, so the qualified form was added to the 4 ratio cases
-     (`e0985be`).
-4. **3 runs per model** (`evals/results/2026-10-13T00-*.json`): no failures in 48
-   runs.
-5. **Review by a second model.** An independent check of those answers agreed with
-   the grader on every verdict, and found a case error: `debt-basket-icr` asked about
-   debt that "exceeds the clause's baskets", but the 2.00:1 minimum applies to debt
-   *not of a type* in those baskets, before the Covenant Compliance Restoration Date.
-   The question was reworded (`310ba0b`). A code review then found six defects, all
-   fixed with tests (`8e5ad46`..`0d8dffd`). Two of them changed grading: an
-   `insufficient_evidence` answer can no longer carry a guessed value, and headings
-   like `2. Effectiveness; Conditions Precedent.` are recognised.
-6. **Current results** (above), on the fixed cases and grading. Sonnet's precedence
-   error (step 3) hasn't recurred, but one occurrence in 8 runs of that case means it
-   can.
+Results are only compared when the questions, scoring code and documents are the same;
+each results file in `evals/results/` records all three. Current results: commit
+`0d8dffd`, `evals/results/2026-10-13T01-*.json`.
 
-## Evidence
+## Example runs
 
-All on `claude-sonnet-5-5`, question: "What maximum Consolidated Leverage Ratio applies
-to the fiscal quarter ending on or about September 30, 2020?" (eval case
-`leverage-q3-2020`).
+Both for the question "What maximum Consolidated Leverage Ratio applies to the quarter
+ending September 30, 2020?":
 
-- **Successful run:** [`runs/2026-10-12T20-21-38Z-ask-e4248a.jsonl`](runs/2026-10-12T20-21-38Z-ask-e4248a.jsonl),
-  answer [`outputs/2026-10-12T20-21-38Z-ask-e4248a/answer.json`](outputs/2026-10-12T20-21-38Z-ask-e4248a/answer.json).
-  Commit `32e79de`, clean tree; 5 turns, $0.056. It answers `not tested` and cites
-  Amendment No. 1's §7.06(a), the version in effect for that quarter. Its first
-  `write_answer` was rejected (an Amendment No. 3 citation under the wrong section);
-  the model read the error and fixed the citation on the next call.
-- **Failed run:** [`runs/2026-10-12T18-51-25Z-ask-7f6c20.jsonl`](runs/2026-10-12T18-51-25Z-ask-7f6c20.jsonl),
-  answer [`outputs/2026-10-12T18-51-25Z-ask-7f6c20/answer.json`](outputs/2026-10-12T18-51-25Z-ask-7f6c20/answer.json).
-  Commit `ef5d746` with uncommitted changes. It reached the right conclusion but
-  failed in two ways:
-  - It cited only Amendment No. 3's restated §7.06(a). That version applies from the
-    quarter ending on or about March 31, 2021 and doesn't reach back, so it doesn't
-    govern the 2020 quarter; Amendment No. 1's §7.06(a) does. The prompt had no rule
-    for which version applies to an earlier period, so the agent took the latest
-    text. **Change:** the system prompt now states the precedence rule: an amendment
-    applies from its effective date and changes an earlier period only where its text
-    expressly covers that period (`d53342d`).
-  - Its value was a sentence ("None – no maximum Consolidated Leverage Ratio applies
-    (not tested) for the quarter ending September 30, 2020"), which no deterministic
-    grader can match. **Change:** the prompt now says the value is graded on its own
-    and holds only the answer (`b4c6e87`).
-- Before/after comparison of one agent change on the fixed case set: next. The
-  results above are the baseline.
+- **Success:** [transcript](runs/2026-10-12T20-21-38Z-ask-e4248a.jsonl),
+  [answer](outputs/2026-10-12T20-21-38Z-ask-e4248a/answer.json). Answers "not tested"
+  from Amendment No. 1, in 5 steps for $0.06. Its first answer was rejected for a
+  wrong citation, and it fixed it.
+- **Failure:** [transcript](runs/2026-10-12T18-51-25Z-ask-7f6c20.jsonl),
+  [answer](outputs/2026-10-12T18-51-25Z-ask-7f6c20/answer.json). Right conclusion,
+  but it cited Amendment No. 3, which only applies from 2021, and wrote a sentence
+  instead of a short value. **Fixed by** telling the agent which version applies to a
+  past period, and that the value must be the bare answer.
 
 ## Limitations
 
-- A historical document set. Answers state what these documents provide for a period,
-  not the agreement's status today.
-- Citation grading checks that cited sections and line ranges exist and match the
-  expected ones. It does not check that the cited text supports the answer.
-- A small eval: 8 cases, 3 runs each per model. Enough to catch the failures above,
-  not to estimate rates. Sonnet's precedence error occurred once in 8 runs of
-  `leverage-q3-2020` across the results files.
-- Filing defects are fixed case by case as they are found, like the dropped section
-  number in Amendment No. 1.
-- The 2026-10-13 results files say `dirty: true` for 5 of 6 runs, though all ran on
-  the same commit with no code changes: the check counted the batch's own new results
-  files. It now ignores `runs/`, `outputs/` and `evals/results/`.
-- The cost limit is checked between calls, so a run can exceed it by one call (see
-  [Run limits and endings](#run-limits-and-endings)).
-- Basic text extraction: page numbers count rendered pages rather than printed
-  footers, and there is no structure-aware parsing.
-- One agreement family; models limited to those with exact pricing in the recorder.
+- Answers describe what these documents say for a period, not the agreement today.
+- A small test set: enough to catch the problems above, not to measure error rates.
+- Section detection fits this agreement's formatting; other companies' filings need
+  more work.
+- Filing defects are fixed one at a time, as they're found.
+- Next: measure one agent change against these results.
 
 ## Layout
 
 ```
-src/amendment_agent/   cli, settings, manifest, edgar, extract, recorder, schema, evals
-                       agent, system_prompt.md, tools, citations, graders
-                       (hand-written core)
-data/manifest.yaml     the filings; raw and extracted text are not committed
-evals/cases.jsonl      eval cases; results in evals/results/
-runs/, outputs/        per-run transcripts and answers (not committed by default)
+src/amendment_agent/   agent, system_prompt.md, tools, citations, graders (core)
+                       cli, settings, manifest, edgar, extract, recorder, schema, evals
+data/manifest.yaml     the filings (downloaded and extracted text isn't committed)
+evals/                 test questions (cases.jsonl) and results
+runs/, outputs/        transcripts and answers (only the examples are committed)
 ```
 
 ## Development
 
-`make check` runs lint, `mypy --strict` and the offline tests with a coverage floor.
-CI runs the same on every push and pull request.
+`make check` runs the linters, type checks and offline tests. CI runs the same on every
+push and pull request.
