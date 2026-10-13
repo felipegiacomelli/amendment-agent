@@ -1,0 +1,44 @@
+{
+  "eval_id": "2026-10-13T00-33-44Z-claude-sonnet-5-5-caff9f",
+  "model": "claude-sonnet-5-5",
+  "git": {
+    "commit": "310ba0b6341ad88231a66a348ccea5a02796e6a8",
+    "dirty": false
+  },
+  "cases_path": "evals/cases.jsonl",
+  "cases_sha256": "efd3a601a0be3ebbee2a515ce20215caf9670524124880b14eb9c003a0c3f6df",
+  "grading_sha256": "09a7d9c12073f9a71d4c4061bd5e9302a8c7c7cd3f5d3ac692f517ab76512d40",
+  "case_ids": [
+    "debt-basket-icr"
+  ],
+  "config": {
+    "max_turns": 25,
+    "max_cost_usd": 1.0,
+    "request_timeout_s": 120.0,
+    "eval_id": "2026-10-13T00-33-44Z-claude-sonnet-5-5-caff9f",
+    "cases_sha256": "efd3a601a0be3ebbee2a515ce20215caf9670524124880b14eb9c003a0c3f6df",
+    "grading_sha256": "09a7d9c12073f9a71d4c4061bd5e9302a8c7c7cd3f5d3ac692f517ab76512d40"
+  },
+  "comparability": "Compare results only when cases_sha256, case_ids and grading_sha256 match; the git commit identifies the agent version. Report the model and corpus with any comparison. Otherwise rerun the older version on the current case set.",
+  "results": [
+    {
+      "case_id": "debt-basket-icr",
+      "category": "later_amendment",
+      "answer": {
+        "passed": true,
+        "reason": "value 'minimum 2.00:1' accepted",
+        "warning": ""
+      },
+      "citations": {
+        "passed": true,
+        "reason": "all expected citations present",
+        "warning": ""
+      },
+      "stop_reason": "answered",
+      "turns": 5,
+      "cost_usd": 0.022722,
+      "cost_complete": true,
+      "run_id": "2026-10-13T00-33-44Z-debt-basket-icr-8a4fc3"
+    }
+  ]
+}
