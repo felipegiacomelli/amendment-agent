@@ -328,3 +328,25 @@ def test_schemas_match_functions() -> None:
         assert isinstance(properties, dict) and isinstance(required, list)
         assert set(properties) == set(params)
         assert set(required) == required_args
+
+
+def test_list_files_and_grep_skip_a_symlink_out_of_the_root(
+    root: Path, tmp_path: Path
+) -> None:
+    (root / "linked.txt").symlink_to(tmp_path / "secret.txt")
+    assert "linked.txt" not in list_files(root=root).text
+    assert "leak" not in grep("rate", root=root).text
+    assert "Applicable Rate" in grep("rate", root=root).text
+
+
+def test_write_answer_refuses_a_symlinked_answer_file(tmp_path: Path) -> None:
+    outside = tmp_path / "outside.txt"
+    outside.write_text("keep me", encoding="utf-8")
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / ANSWER_FILENAME).symlink_to(outside)
+    result = write_answer(
+        "insufficient_evidence", "Not in the documents.", [], root=out
+    )
+    assert result.is_error and "symlink" in result.text
+    assert outside.read_text(encoding="utf-8") == "keep me"

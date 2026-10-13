@@ -251,10 +251,14 @@ def _error(message: str) -> ToolResult:
     return ToolResult(text=f"error: {message}", is_error=True)
 
 
-def _files_under(target: Path) -> list[Path]:
+def _files_under(target: Path, base: Path) -> list[Path]:
+    """Files under `target` whose real location is inside `base`: a symlink inside
+    the root that points out of it is skipped, not followed."""
     if target.is_file():
         return [target]
-    return sorted(p for p in target.rglob("*") if p.is_file())
+    return sorted(
+        p for p in target.rglob("*") if p.is_file() and p.resolve().is_relative_to(base)
+    )
 
 
 def list_files(path: str = "", *, root: Path = TEXT_DIR) -> ToolResult:
@@ -263,7 +267,7 @@ def list_files(path: str = "", *, root: Path = TEXT_DIR) -> ToolResult:
     if target is None or not target.is_dir():
         return _error(f"not a directory under the document root: {path!r}")
     base = root.resolve()
-    names = [str(p.relative_to(base)) for p in _files_under(target)]
+    names = [str(p.relative_to(base)) for p in _files_under(target, base)]
     return ToolResult(text="\n".join(names) or "(no files)", is_error=False)
 
 
@@ -278,7 +282,7 @@ def grep(pattern: str, path: str = "", *, root: Path = TEXT_DIR) -> ToolResult:
         return _error(f"no such file or directory under the document root: {path!r}")
     base = root.resolve()
     hits: list[str] = []
-    for file in _files_under(target):
+    for file in _files_under(target, base):
         for lineno, line in enumerate(read_lines(file), start=1):
             if not regex.search(line):
                 continue
@@ -349,10 +353,11 @@ def write_answer(
     ]
     if problems:
         return _error("answer not written, fix and call again: " + "; ".join(problems))
+    destination = root / ANSWER_FILENAME
+    if destination.is_symlink():  # writing would follow it out of the output dir
+        return _error(f"answer not written: {ANSWER_FILENAME} is a symlink")
     root.mkdir(parents=True, exist_ok=True)
-    (root / ANSWER_FILENAME).write_text(
-        answer.model_dump_json(indent=2) + "\n", encoding="utf-8"
-    )
+    destination.write_text(answer.model_dump_json(indent=2) + "\n", encoding="utf-8")
     return ToolResult(text=f"wrote {ANSWER_FILENAME}", is_error=False)
 
 
