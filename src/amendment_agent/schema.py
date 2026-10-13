@@ -54,6 +54,9 @@ class Answer(BaseModel):
                 raise ValueError("an answered status needs a non-empty value")
             if not self.citations:
                 raise ValueError("an answered status needs at least one citation")
+        elif self.value is not None:
+            # A guessed value would otherwise get full credit on an unanswerable case.
+            raise ValueError("an insufficient_evidence status takes no value")
         return self
 
 

@@ -64,6 +64,14 @@ def test_invalid_answers_are_rejected(change: dict[str, Any]) -> None:
         Answer.model_validate(ANSWER | change)
 
 
+@pytest.mark.parametrize("value", ["3.75:1", ""])
+def test_insufficient_evidence_with_a_value_is_rejected(value: str) -> None:
+    with pytest.raises(ValidationError, match="takes no value"):
+        Answer.model_validate(
+            {"status": "insufficient_evidence", "value": value, "explanation": "e"}
+        )
+
+
 def test_insufficient_evidence_needs_no_value() -> None:
     answer = Answer.model_validate(
         {"status": "insufficient_evidence", "explanation": "Not in these documents."}
