@@ -20,7 +20,7 @@ import attrs
 from anthropic.types import Message, MessageParam, Usage
 from pydantic import BaseModel
 
-from amendment_agent.settings import TEXT_DIR
+from amendment_agent.settings import OUTPUT_DIR, RESULTS_DIR, RUNS_DIR, TEXT_DIR
 
 
 @attrs.frozen
@@ -100,7 +100,18 @@ def git_revision() -> dict[str, object]:
         ).stdout
     except (OSError, subprocess.CalledProcessError):
         return {"commit": None, "dirty": None}
-    return {"commit": commit, "dirty": bool(status.strip())}
+    return {"commit": commit, "dirty": is_dirty(status)}
+
+
+# What runs and evals write themselves; it isn't a code change.
+RUN_OUTPUTS = tuple(f"{d.as_posix()}/" for d in (RUNS_DIR, OUTPUT_DIR, RESULTS_DIR))
+
+
+def is_dirty(porcelain: str) -> bool:
+    """True if `git status --porcelain` shows a change outside the run outputs."""
+    return any(
+        not line[3:].startswith(RUN_OUTPUTS) for line in porcelain.splitlines() if line
+    )
 
 
 def fingerprint(directory: Path) -> dict[str, str]:

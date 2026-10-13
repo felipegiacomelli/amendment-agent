@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from anthropic.types import Message, MessageParam
 
-from amendment_agent.recorder import PRICES, RunRecorder, cost, read_events
+from amendment_agent.recorder import PRICES, RunRecorder, cost, is_dirty, read_events
 
 MODEL = "claude-sonnet-5-5"
 USAGE: dict[str, Any] = {
@@ -228,3 +228,23 @@ def test_events_are_indented_and_read_back(tmp_path: Path) -> None:
     assert '\n    "event": "run_start",' in text  # indented for people
     assert "café?" in text  # non-ASCII kept readable
     assert [e["event"] for e in read_events(rec.path)] == ["run_start", "run_end"]
+
+
+@pytest.mark.parametrize(
+    ("porcelain", "dirty"),
+    [
+        ("", False),
+        (
+            "?? evals/results/2026-10-13T00-04-40Z-claude-sonnet-5-5-57dfff.json\n",
+            False,
+        ),
+        ("?? runs/x.jsonl\n?? outputs/x/answer.json\n", False),
+        (" M src/amendment_agent/agent.py\n", True),
+        ("?? src/amendment_agent/new.py\n", True),
+        ("?? evals/results/r.json\n M evals/cases.jsonl\n", True),
+    ],
+)
+def test_only_changes_outside_run_outputs_make_the_tree_dirty(
+    porcelain: str, dirty: bool
+) -> None:
+    assert is_dirty(porcelain) is dirty

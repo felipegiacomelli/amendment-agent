@@ -204,9 +204,9 @@ to the fiscal quarter ending on or about September 30, 2020?" (eval case
   `leverage-q3-2020` across the results files.
 - Filing defects are fixed case by case as they are found, like the dropped section
   number in Amendment No. 1.
-- The `dirty` flag in transcripts and results counts untracked files, so a batch's
-  own results files mark the later runs in it as dirty (the 2026-10-13 runs all ran
-  on the same commit with no code changes).
+- The 2026-10-13 results files say `dirty: true` for 5 of 6 runs, though all ran on
+  the same commit with no code changes: the check counted the batch's own new results
+  files. It now ignores `runs/`, `outputs/` and `evals/results/`.
 - The cost limit is checked between calls, so a run can exceed it by one call (see
   [Run limits and endings](#run-limits-and-endings)).
 - Basic text extraction: page numbers count rendered pages rather than printed
