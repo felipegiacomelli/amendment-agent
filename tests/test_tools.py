@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from amendment_agent import citations, tools
-from amendment_agent.citations import citation_problem
+from amendment_agent.citations import citation_problem, section_at
 from amendment_agent.schema import ANSWER_FILENAME, Citation, load_answer
 from amendment_agent.tools import (
     execute_tool,
@@ -350,3 +350,30 @@ def test_write_answer_refuses_a_symlinked_answer_file(tmp_path: Path) -> None:
     )
     assert result.is_error and "symlink" in result.text
     assert outside.read_text(encoding="utf-8") == "keep me"
+
+
+@pytest.mark.parametrize(
+    ("heading", "number"),
+    [
+        ("7.11 Burdensome Agreements. The Company shall not", "7.11"),
+        ("1.Amendments to Credit Agreement. The Credit Agreement", "1"),
+        ("2. Effectiveness; Conditions Precedent. This Amendment shall", "2"),
+        ("3. Representations and Warranties. In order to induce", "3"),
+        ("2. Payments. From and after the Effective Date", "2"),
+    ],
+)
+def test_section_at_finds_each_heading_style(heading: str, number: str) -> None:
+    assert section_at(["[Page 1]", heading, "Body text."], 3) == number
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "1. Attached hereto as Schedule 1 are the year-end audited statements.",
+        "2. The undersigned has reviewed and is familiar with the terms.",
+        "7.11 | Burdensome Agreements 101",
+        "9.10 of the Credit Agreement is amended.",
+    ],
+)
+def test_section_at_skips_numbered_sentences_and_contents_rows(line: str) -> None:
+    assert section_at(["[Page 1]", "5.Earlier Heading. Text.", line], 3) == "5"

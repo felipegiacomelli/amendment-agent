@@ -20,11 +20,18 @@ MAX_CITATION_LINES = 20
 # Text files are one block per line, so a section heading is a line that starts with
 # a section number and a capitalised word: "7.11 Burdensome Agreements. ..." in the
 # credit agreement (original, and the restated one in amendment-1), "1.Amendments to
-# Credit Agreement. ..." in the amendments. Not table-of-contents rows ("7.11 |
-# Burdensome Agreements 101") or wrapped text ("9.10 of the Credit Agreement").
-# ponytail: numbered items in the exhibit forms also match; citing an exhibit form
-# reports its item number as the section. Parse exhibits if that ever matters.
-_HEADING = re.compile(r"^(?P<number>\d{1,2}\.\d{2}(?= [A-Z])|\d{1,2}(?=\.[A-Z]))")
+# Credit Agreement. ..." or "2. Effectiveness; Conditions Precedent. ..." in the
+# amendments. With a space after "2.", the words up to the next "." must be a title
+# (capitalised, or small joining words), so numbered sentences in the exhibit forms
+# ("1. Attached hereto as Schedule 1 ...") aren't headings. Not table-of-contents rows
+# ("7.11 | Burdensome Agreements 101") or wrapped text ("9.10 of the Credit Agreement").
+# ponytail: unspaced numbered items in the exhibit forms also match; citing one reports
+# its item number as the section. Parse exhibits if that ever matters.
+_TITLE = r"[A-Z][\w’']*(?:[;,]? (?:[A-Z][\w’']*|and|or|of|to|the|in|for|on))*\."
+_HEADING = re.compile(
+    rf"^(?P<number>\d{{1,2}}\.\d{{2}}(?= [A-Z])|\d{{1,2}}(?=\.[A-Z])"
+    rf"|\d{{1,2}}(?=\. {_TITLE}))"
+)
 # The section number a citation names: "7.06" in "Section 7.06(a)", "1" in "1(b)".
 _SECTION_NUMBER = re.compile(r"\d{1,2}(?:\.\d{2})?")
 _PUNCTUATION = str.maketrans(
