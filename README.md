@@ -33,7 +33,7 @@ version; conditions in the text can still change what applies.
 | Run recorder: JSONL transcript with config, git revision, corpus hashes, every request, response, tool call, usage and cost | implemented, tested offline |
 | Answer and eval-case schema; eval runner with fail-closed grading and comparable results files | implemented, tested offline |
 | Agent loop and tools | hand-written, tested offline with a scripted fake client |
-| Graders | in progress, hand-written |
+| Graders | deterministic, fail closed, tested offline |
 
 ## Quickstart
 
@@ -106,6 +106,63 @@ Every run ends with one stop reason, recorded in the transcript's `run_end`:
   the transcript. Other API errors end the run at once. API errors are never shown to
   the model as tool errors.
 
+## Eval results
+
+8 cases in [`evals/cases.jsonl`](evals/cases.jsonl), each checked by hand against the
+documents. They cover a superseded provision (2), a provision amended again later (4,
+including a direction inversion that Amendment No. 2 corrects), an unchanged
+provision (1) and a question the documents can't answer (1). Each case ran 3 times
+per model, on commit `2f7ccf3` (the results files record `c596b62`, the same tree
+before its commits were split), with the same cases (`cases_sha256` `d2eb0ef7…`) and
+grading code (`grading_sha256` `09a7d9c1…`):
+
+| Model | Answers | Citations | Extra citations | Cost per question | Turns |
+|---|---|---|---|---|---|
+| `claude-sonnet-5-5` | 24/24 | 24/24 | 6/24 | $0.030 | 4.8 |
+| `claude-opus-5-5` | 24/24 | 24/24 | 18/24 | $0.096 | 4.7 |
+
+On this set Opus is as accurate as Sonnet at about 3 times the cost, so Sonnet is the
+default. Results files: `evals/results/2026-10-13T00-*.json`.
+
+What the graders check, and what they don't:
+
+- **Answer:** the status matches. If answered, the value matches an accepted value
+  after normalisation: lowercase, single spaces, no trailing punctuation, and ratios
+  in one form (`3.75 to 1.00`, `3.75:1` and `3.75x` are equal). The explanation is
+  not graded.
+- **Citations:** every citation passes the same check `write_answer` runs (document
+  exists, at most 20 lines in one section, verbatim quote in those lines, section is
+  the heading above them or one they name). Every expected `(document, section)` is
+  cited, either by a label that is the same or more specific (`7.06(a)` accepts
+  `7.06(a)(i)`, not `7.06` or `7.06(b)`) or by lines that name it. Extra citations,
+  usually the superseded version cited next to the one in force, don't fail the
+  grade; they show as `✓*` in the eval table.
+- **Not checked:** that the cited lines support the answer, or that the reasoning is
+  right. Those are left to a second, independent review of the answers by another
+  model.
+
+How we got here (all results files are kept in `evals/results/`):
+
+1. **First baseline** (`c8a11f0`): answers 8/8 on both models; citations 4/8
+   (Sonnet) and 7/8 (Opus). Every citation failure was in the measurement, not the
+   agent:
+   - the grader matched only a citation's label, and Sonnet labels amendment lines
+     with the amendment's own heading (`§1`), which the citation convention allows;
+   - Amendment No. 1's filing drops the number from its "Defined Terms" heading, so
+     every definition in force sat under the wrong section and the expected citation
+     for `lc-sublimit` could not be made.
+2. **Fixes:** the grader also accepts lines that name the expected section
+   (`a953a63`); extraction restores a dropped heading number from the document's
+   table of contents (`3b21073`, one line of the corpus changed).
+3. **Rerun:** citations 7/8 (Sonnet) and 8/8 (Opus). The two remaining failures:
+   - Sonnet cited only Amendment No. 3 on `leverage-q3-2020`: the precedence mistake
+     from the failed run below, and a real agent error;
+   - Opus answered `minimum 3.00 to 1.00` where the case accepted only `3.00:1`:
+     a correct answer, so the qualified form was added to the 4 ratio cases
+     (`e0985be`).
+4. **Current results** (above): no failures in 48 runs. Sonnet's precedence error
+   didn't recur, but one occurrence in 5 runs of that case means it can.
+
 ## Evidence
 
 All on `claude-sonnet-5-5`, question: "What maximum Consolidated Leverage Ratio applies
@@ -133,7 +190,8 @@ to the fiscal quarter ending on or about September 30, 2020?" (eval case
     (not tested) for the quarter ending September 30, 2020"), which no deterministic
     grader can match. **Change:** the prompt now says the value is graded on its own
     and holds only the answer (`b4c6e87`).
-- Before/after comparison on a fixed case set: *not yet produced* (needs the graders).
+- Before/after comparison of one agent change on the fixed case set: next. The
+  results above are the baseline.
 
 ## Limitations
 
@@ -141,6 +199,14 @@ to the fiscal quarter ending on or about September 30, 2020?" (eval case
   not the agreement's status today.
 - Citation grading checks that cited sections and line ranges exist and match the
   expected ones. It does not check that the cited text supports the answer.
+- A small eval: 8 cases, 3 runs each per model. Enough to catch the failures above,
+  not to estimate rates. Sonnet's precedence error occurred once in 5 runs of
+  `leverage-q3-2020` across the results files.
+- Filing defects are fixed case by case as they are found, like the dropped section
+  number in Amendment No. 1.
+- The `dirty` flag in transcripts and results counts untracked files, so a batch's
+  own results files mark the later runs in it as dirty (the 2026-10-13 runs all ran
+  on the same commit with no code changes).
 - The cost limit is checked between calls, so a run can exceed it by one call (see
   [Run limits and endings](#run-limits-and-endings)).
 - Basic text extraction: page numbers count rendered pages rather than printed
@@ -151,7 +217,8 @@ to the fiscal quarter ending on or about September 30, 2020?" (eval case
 
 ```
 src/amendment_agent/   cli, settings, manifest, edgar, extract, recorder, schema, evals
-                       agent, tools, graders (hand-written core)
+                       agent, system_prompt.md, tools, citations, graders
+                       (hand-written core)
 data/manifest.yaml     the filings; raw and extracted text are not committed
 evals/cases.jsonl      eval cases; results in evals/results/
 runs/, outputs/        per-run transcripts and answers (not committed by default)
