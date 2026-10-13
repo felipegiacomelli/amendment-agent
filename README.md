@@ -112,17 +112,19 @@ Every run ends with one stop reason, recorded in the transcript's `run_end`:
 documents. They cover a superseded provision (2), a provision amended again later (4,
 including a direction inversion that Amendment No. 2 corrects), an unchanged
 provision (1) and a question the documents can't answer (1). Each case ran 3 times
-per model, on commit `2f7ccf3` (the results files record `c596b62`, the same tree
-before its commits were split), with the same cases (`cases_sha256` `d2eb0ef7…`) and
-grading code (`grading_sha256` `09a7d9c1…`):
+per model, on commit `0d8dffd` with a clean tree, the same cases (`cases_sha256`
+`efd3a601…`) and grading code (`grading_sha256` `be4b618d…`):
 
 | Model | Answers | Citations | Extra citations | Cost per question | Turns |
 |---|---|---|---|---|---|
-| `claude-sonnet-5-5` | 24/24 | 24/24 | 6/24 | $0.030 | 4.8 |
-| `claude-opus-5-5` | 24/24 | 24/24 | 18/24 | $0.096 | 4.7 |
+| `claude-sonnet-5-5` | 24/24 | 24/24 | 3/24 | $0.029 | 4.7 |
+| `claude-opus-5-5` | 24/24 | 23/24 | 16/24 | $0.098 | 4.7 |
 
-On this set Opus is as accurate as Sonnet at about 3 times the cost, so Sonnet is the
-default. Results files: `evals/results/2026-10-13T00-*.json`.
+On this set Opus is no more accurate than Sonnet, at about 3 times the cost, so Sonnet
+is the default. Opus's one failure: on `leverage-q3-2020` it cited the right lines of
+Amendment No. 1 (the §7.06 heading and clause (a)) but labelled them `§7.06`, broader
+than the expected `§7.06(a)`, which the citation grader fails by design. Results
+files: `evals/results/2026-10-13T01-*.json`.
 
 What the graders check, and what they don't:
 
@@ -160,8 +162,19 @@ How we got here (all results files are kept in `evals/results/`):
    - Opus answered `minimum 3.00 to 1.00` where the case accepted only `3.00:1`:
      a correct answer, so the qualified form was added to the 4 ratio cases
      (`e0985be`).
-4. **Current results** (above): no failures in 48 runs. Sonnet's precedence error
-   didn't recur, but one occurrence in 5 runs of that case means it can.
+4. **3 runs per model** (`evals/results/2026-10-13T00-*.json`): no failures in 48
+   runs.
+5. **Review by a second model.** An independent check of those answers agreed with
+   the grader on every verdict, and found a case error: `debt-basket-icr` asked about
+   debt that "exceeds the clause's baskets", but the 2.00:1 minimum applies to debt
+   *not of a type* in those baskets, before the Covenant Compliance Restoration Date.
+   The question was reworded (`310ba0b`). A code review then found six defects, all
+   fixed with tests (`8e5ad46`..`0d8dffd`). Two of them changed grading: an
+   `insufficient_evidence` answer can no longer carry a guessed value, and headings
+   like `2. Effectiveness; Conditions Precedent.` are recognised.
+6. **Current results** (above), on the fixed cases and grading. Sonnet's precedence
+   error (step 3) hasn't recurred, but one occurrence in 8 runs of that case means it
+   can.
 
 ## Evidence
 
@@ -200,7 +213,7 @@ to the fiscal quarter ending on or about September 30, 2020?" (eval case
 - Citation grading checks that cited sections and line ranges exist and match the
   expected ones. It does not check that the cited text supports the answer.
 - A small eval: 8 cases, 3 runs each per model. Enough to catch the failures above,
-  not to estimate rates. Sonnet's precedence error occurred once in 5 runs of
+  not to estimate rates. Sonnet's precedence error occurred once in 8 runs of
   `leverage-q3-2020` across the results files.
 - Filing defects are fixed case by case as they are found, like the dropped section
   number in Amendment No. 1.
