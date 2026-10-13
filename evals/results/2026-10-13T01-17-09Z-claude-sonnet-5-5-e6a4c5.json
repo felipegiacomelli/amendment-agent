@@ -1,0 +1,184 @@
+{
+  "eval_id": "2026-10-13T01-17-09Z-claude-sonnet-5-5-e6a4c5",
+  "model": "claude-sonnet-5-5",
+  "git": {
+    "commit": "0d8dffd5c9e0caa83956694f8ba351b0e80c3971",
+    "dirty": false
+  },
+  "cases_path": "evals/cases.jsonl",
+  "cases_sha256": "efd3a601a0be3ebbee2a515ce20215caf9670524124880b14eb9c003a0c3f6df",
+  "grading_sha256": "be4b618d18bd652e02770dedda2e7d58971913ec46fcbe9c34bba43ae5c9b25f",
+  "case_ids": [
+    "leverage-q3-2020",
+    "icr-q2-2020",
+    "icr-q4-2020",
+    "icr-q2-2021",
+    "debt-basket-icr",
+    "leverage-q3-2021",
+    "lc-sublimit",
+    "actual-leverage-q3-2020"
+  ],
+  "config": {
+    "max_turns": 25,
+    "max_cost_usd": 1.0,
+    "request_timeout_s": 120.0,
+    "eval_id": "2026-10-13T01-17-09Z-claude-sonnet-5-5-e6a4c5",
+    "cases_sha256": "efd3a601a0be3ebbee2a515ce20215caf9670524124880b14eb9c003a0c3f6df",
+    "grading_sha256": "be4b618d18bd652e02770dedda2e7d58971913ec46fcbe9c34bba43ae5c9b25f"
+  },
+  "comparability": "Compare results only when cases_sha256, case_ids and grading_sha256 match; the git commit identifies the agent version. Report the model and corpus with any comparison. Otherwise rerun the older version on the current case set.",
+  "results": [
+    {
+      "case_id": "leverage-q3-2020",
+      "category": "superseded",
+      "answer": {
+        "passed": true,
+        "reason": "value 'not tested' accepted",
+        "warning": ""
+      },
+      "citations": {
+        "passed": true,
+        "reason": "all expected citations present",
+        "warning": "extra: amendment-3 \u00a77.06(a) [21-22]"
+      },
+      "stop_reason": "answered",
+      "turns": 5,
+      "cost_usd": 0.0284973,
+      "cost_complete": true,
+      "run_id": "2026-10-13T01-17-09Z-leverage-q3-2020-c89413"
+    },
+    {
+      "case_id": "icr-q2-2020",
+      "category": "superseded",
+      "answer": {
+        "passed": true,
+        "reason": "value '2.00:1' accepted",
+        "warning": ""
+      },
+      "citations": {
+        "passed": true,
+        "reason": "all expected citations present",
+        "warning": ""
+      },
+      "stop_reason": "answered",
+      "turns": 4,
+      "cost_usd": 0.0135664,
+      "cost_complete": true,
+      "run_id": "2026-10-13T01-17-26Z-icr-q2-2020-ff48ba"
+    },
+    {
+      "case_id": "icr-q4-2020",
+      "category": "later_amendment",
+      "answer": {
+        "passed": true,
+        "reason": "value '3.00 to 1.00' accepted",
+        "warning": ""
+      },
+      "citations": {
+        "passed": true,
+        "reason": "all expected citations present",
+        "warning": ""
+      },
+      "stop_reason": "answered",
+      "turns": 5,
+      "cost_usd": 0.0357724,
+      "cost_complete": true,
+      "run_id": "2026-10-13T01-17-36Z-icr-q4-2020-80e3ae"
+    },
+    {
+      "case_id": "icr-q2-2021",
+      "category": "later_amendment",
+      "answer": {
+        "passed": true,
+        "reason": "value '3.00 to 1.00' accepted",
+        "warning": ""
+      },
+      "citations": {
+        "passed": true,
+        "reason": "all expected citations present",
+        "warning": ""
+      },
+      "stop_reason": "answered",
+      "turns": 5,
+      "cost_usd": 0.0196981,
+      "cost_complete": true,
+      "run_id": "2026-10-13T01-17-49Z-icr-q2-2021-da07b2"
+    },
+    {
+      "case_id": "debt-basket-icr",
+      "category": "later_amendment",
+      "answer": {
+        "passed": true,
+        "reason": "value 'minimum 2.00:1' accepted",
+        "warning": ""
+      },
+      "citations": {
+        "passed": true,
+        "reason": "all expected citations present",
+        "warning": ""
+      },
+      "stop_reason": "answered",
+      "turns": 5,
+      "cost_usd": 0.027782,
+      "cost_complete": true,
+      "run_id": "2026-10-13T01-18-01Z-debt-basket-icr-81ed45"
+    },
+    {
+      "case_id": "leverage-q3-2021",
+      "category": "later_amendment",
+      "answer": {
+        "passed": true,
+        "reason": "value '3.75 to 1.00' accepted",
+        "warning": ""
+      },
+      "citations": {
+        "passed": true,
+        "reason": "all expected citations present",
+        "warning": ""
+      },
+      "stop_reason": "answered",
+      "turns": 5,
+      "cost_usd": 0.027323399999999998,
+      "cost_complete": true,
+      "run_id": "2026-10-13T01-18-15Z-leverage-q3-2021-9db90e"
+    },
+    {
+      "case_id": "lc-sublimit",
+      "category": "unchanged",
+      "answer": {
+        "passed": true,
+        "reason": "value '$20,000,000' accepted",
+        "warning": ""
+      },
+      "citations": {
+        "passed": true,
+        "reason": "all expected citations present",
+        "warning": ""
+      },
+      "stop_reason": "answered",
+      "turns": 4,
+      "cost_usd": 0.009944199999999999,
+      "cost_complete": true,
+      "run_id": "2026-10-13T01-18-25Z-lc-sublimit-862161"
+    },
+    {
+      "case_id": "actual-leverage-q3-2020",
+      "category": "unanswerable",
+      "answer": {
+        "passed": true,
+        "reason": "insufficient_evidence, as expected",
+        "warning": ""
+      },
+      "citations": {
+        "passed": true,
+        "reason": "all expected citations present",
+        "warning": "extra: amendment-1 \u00a71.01 [593-593]"
+      },
+      "stop_reason": "answered",
+      "turns": 5,
+      "cost_usd": 0.024975199999999996,
+      "cost_complete": true,
+      "run_id": "2026-10-13T01-18-33Z-actual-leverage-q3-2020-7a4562"
+    }
+  ]
+}
