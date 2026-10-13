@@ -87,7 +87,6 @@ def run_agent(
 
     turn = 0
     cost = 0.0
-    stop_reason = StopReason.MAX_TURNS
     seen: Counter[tuple[str, str]] = Counter()
 
     while turn < max_turns and cost < max_cost_usd:
@@ -164,9 +163,12 @@ def run_agent(
             break
 
         turn += 1
-
-    if cost >= max_cost_usd:
-        stop_reason = StopReason.MAX_COST
+    else:
+        # The loop's own condition ended it: say which limit. Every other ending breaks.
+        if cost >= max_cost_usd:
+            stop_reason = StopReason.MAX_COST
+        else:
+            stop_reason = StopReason.MAX_TURNS
 
     # A valid answer.json overrides whatever ended the loop
     try:

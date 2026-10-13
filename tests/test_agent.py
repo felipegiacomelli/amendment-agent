@@ -339,3 +339,11 @@ def test_a_non_retryable_error_ends_the_run_at_once(
     assert stop is StopReason.PROVIDER_ERROR
     assert len(client.params) == 1
     assert delays == []
+
+
+def test_a_refusal_on_the_call_that_crosses_the_cost_limit_stays_a_refusal(
+    tmp_path: Path, tools: FakeTools
+) -> None:
+    stop, _ = run(tmp_path, FakeClient(message("refusal")), max_cost_usd=0.0001)
+
+    assert stop is StopReason.REFUSAL
