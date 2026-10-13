@@ -98,6 +98,7 @@ def run_case(
                 model=model,
                 recorder=recorder,
                 output_dir=output_dir,
+                text_dir=text_dir,
                 max_turns=max_turns,
                 max_cost_usd=max_cost_usd,
             )

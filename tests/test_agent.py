@@ -95,11 +95,18 @@ class FakeTools:
         self.results = results or {}
         self.answer = answer
         self.calls: list[tuple[str, dict[str, object]]] = []
+        self.text_dirs: list[Path] = []
 
     def __call__(
-        self, name: str, tool_input: dict[str, object], *, output_dir: Path
+        self,
+        name: str,
+        tool_input: dict[str, object],
+        *,
+        output_dir: Path,
+        text_dir: Path,
     ) -> ToolResult:
         self.calls.append((name, tool_input))
+        self.text_dirs.append(text_dir)
         if name == "write_answer":
             output_dir.mkdir(parents=True, exist_ok=True)
             (output_dir / ANSWER_FILENAME).write_text(self.answer, encoding="utf-8")
@@ -134,6 +141,7 @@ def run(
         model=MODEL,
         recorder=recorder,
         output_dir=tmp_path / "out",
+        text_dir=tmp_path / "text",
         max_turns=max_turns,
         max_cost_usd=max_cost_usd,
     )
@@ -371,3 +379,11 @@ def test_a_refusal_on_the_call_that_crosses_the_cost_limit_stays_a_refusal(
     stop, _ = run(tmp_path, FakeClient(message("refusal")), max_cost_usd=0.0001)
 
     assert stop is StopReason.REFUSAL
+
+
+def test_tools_read_the_corpus_the_run_records(
+    tmp_path: Path, tools: FakeTools
+) -> None:
+    run(tmp_path, FakeClient(calls_tool("t1", pattern="x"), ends()))
+
+    assert tools.text_dirs == [tmp_path / "text"]

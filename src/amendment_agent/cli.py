@@ -107,6 +107,7 @@ def cmd_ask(settings: Settings, question: str, model_flag: str | None) -> int:
             model=model,
             recorder=recorder,
             output_dir=output_dir,
+            text_dir=TEXT_DIR,
             max_turns=settings.agent_max_turns,
             max_cost_usd=settings.agent_max_cost_usd,
         )

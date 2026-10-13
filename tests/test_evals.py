@@ -227,3 +227,17 @@ def test_table_flags_a_pass_with_a_warning() -> None:
     )
     assert "✓*" in table and "citations 1/1" in table
     assert "case-1 citations (passed*): extra: amendment-3 §1 [21-22]" in table
+
+
+def test_the_agent_gets_the_corpus_that_is_fingerprinted_and_graded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: list[object] = []
+    write = agent_writing(GOOD)
+
+    def agent(question: str, **kwargs: Any) -> StopReason:
+        seen.append(kwargs["text_dir"])
+        return write(question, **kwargs)
+
+    run(tmp_path, monkeypatch, agent)
+    assert seen == [tmp_path / "text"]

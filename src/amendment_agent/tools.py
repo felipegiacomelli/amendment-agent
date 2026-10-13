@@ -365,9 +365,10 @@ TOOL_MAP: dict[str, Callable[..., ToolResult]] = {
 
 
 def execute_tool(
-    name: str, tool_input: dict[str, object], *, output_dir: Path
+    name: str, tool_input: dict[str, object], *, output_dir: Path, text_dir: Path
 ) -> ToolResult:
-    """Run the named tool. Unknown names and invalid input are error results."""
+    """Run the named tool over `text_dir` (writes go to `output_dir`). Unknown names
+    and invalid input are error results."""
     fn = TOOL_MAP.get(name)
     if fn is None:
         return _error(f"unknown tool {name!r}; available: {', '.join(TOOL_MAP)}")
@@ -376,7 +377,9 @@ def execute_tool(
         return _error(f"unexpected argument {reserved[0]!r}")
     kwargs = dict(tool_input)
     if name == "write_answer":
-        kwargs["root"] = output_dir
+        kwargs |= {"root": output_dir, "text_dir": text_dir}
+    else:
+        kwargs["root"] = text_dir
     try:
         return fn(**kwargs)
     except (TypeError, ValueError, OSError) as e:  # bad args or types, unreadable file

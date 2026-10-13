@@ -279,18 +279,35 @@ def test_execute_tool_passes_output_dir(tmp_path: Path) -> None:
         "write_answer",
         {"status": "insufficient_evidence", "explanation": "none", "citations": []},
         output_dir=tmp_path,
+        text_dir=tmp_path,
     )
     assert not result.is_error
     assert (tmp_path / ANSWER_FILENAME).exists()
 
 
+def test_execute_tool_reads_the_corpus_it_is_given(root: Path, tmp_path: Path) -> None:
+    other = tmp_path / "other"
+    other.mkdir()
+    (other / "original.txt").write_text("[Page 1]\nA different corpus\n", "utf-8")
+    args: dict[str, object] = {"path": "original.txt", "start_line": 2, "end_line": 2}
+    result = execute_tool("read_file", args, output_dir=tmp_path, text_dir=other)
+    assert "A different corpus" in result.text
+    assert "Applicable Rate" not in result.text
+
+
 def test_execute_tool_errors(tmp_path: Path) -> None:
-    assert execute_tool("rm", {}, output_dir=tmp_path).is_error
-    assert execute_tool("read_file", {"path": "x"}, output_dir=tmp_path).is_error
+    assert execute_tool("rm", {}, output_dir=tmp_path, text_dir=tmp_path).is_error
+    assert execute_tool(
+        "read_file", {"path": "x"}, output_dir=tmp_path, text_dir=tmp_path
+    ).is_error
     smuggled: dict[str, object] = {"path": "", "root": "/"}
-    assert execute_tool("list_files", smuggled, output_dir=tmp_path).is_error
+    assert execute_tool(
+        "list_files", smuggled, output_dir=tmp_path, text_dir=tmp_path
+    ).is_error
     smuggled = {"status": "x", "explanation": "", "citations": [], "text_dir": "/"}
-    assert execute_tool("write_answer", smuggled, output_dir=tmp_path).is_error
+    assert execute_tool(
+        "write_answer", smuggled, output_dir=tmp_path, text_dir=tmp_path
+    ).is_error
 
 
 def test_schemas_match_functions() -> None:

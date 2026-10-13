@@ -52,10 +52,11 @@ def run_agent(
     model: str,
     recorder: RunRecorder,
     output_dir: Path,
+    text_dir: Path,
     max_turns: int,
     max_cost_usd: float,
 ) -> StopReason:
-    """Answer `question` from data/text/ and write `output_dir/answer.json`.
+    """Answer `question` from `text_dir` and write `output_dir/answer.json`.
 
     Contract the scaffold relies on:
     - Record each request with `recorder.model_request` before sending it and
@@ -125,7 +126,10 @@ def run_agent(
                     )
                 else:
                     result = execute_tool(
-                        block.name, block.input, output_dir=output_dir
+                        block.name,
+                        block.input,
+                        output_dir=output_dir,
+                        text_dir=text_dir,
                     )
                     if block.name == "write_answer" and not result.is_error:
                         wrote_answer = True
